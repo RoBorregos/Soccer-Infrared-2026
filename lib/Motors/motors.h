@@ -21,6 +21,9 @@ public:
     
     void GetAllSpeeds();
     void MoveOmnidirectionalBase(double target_angle, float speed, double speed_w);
+    void MoveUL(double degree, float speed, double speed_w);
+    void MoveLC(double degree, float speed, double speed_w);
+    void MoveUR(double degree, float speed, double speed_w);
     void LineCorrection(double degree);
 
 private:
