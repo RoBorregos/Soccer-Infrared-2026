@@ -42,25 +42,25 @@ void Motors::StopAllMotors()
 void Motors::MoveUL(double degree, float speed, double speed_w)
 {
     float upper_left_speed = cos(((degree - 150) * PI / 180)) * speed + speed_w;
-    float lower_center_speed = cos(((degree - 270) * PI / 180)) * speed + speed_w;
-    float upper_right_speed = cos(((degree - 30) * PI / 180)) * speed + speed_w;
+    // float lower_center_speed = cos(((degree - 270) * PI / 180)) * speed + speed_w;
+    // float upper_right_speed = cos(((degree - 30) * PI / 180)) * speed + speed_w;
     upper_left_motor_.SetSpeed(upper_left_speed);
 };
 
 
 void Motors::MoveLC(double degree, float speed, double speed_w)
 {
-    float upper_left_speed = cos(((degree - 150) * PI / 180)) * speed + speed_w;
+    // float upper_left_speed = cos(((degree - 150) * PI / 180)) * speed + speed_w;
     float lower_center_speed = cos(((degree - 270) * PI / 180)) * speed + speed_w;
-    float upper_right_speed = cos(((degree - 30) * PI / 180)) * speed + speed_w;
+    // float upper_right_speed = cos(((degree - 30) * PI / 180)) * speed + speed_w;
     lower_center_motor_.SetSpeed(lower_center_speed);
 };
 
 
 void Motors::MoveUR(double degree, float speed, double speed_w)
 {
-    float upper_left_speed = cos(((degree - 150) * PI / 180)) * speed + speed_w;
-    float lower_center_speed = cos(((degree - 270) * PI / 180)) * speed + speed_w;
+    // float upper_left_speed = cos(((degree - 150) * PI / 180)) * speed + speed_w;
+    // float lower_center_speed = cos(((degree - 270) * PI / 180)) * speed + speed_w;
     float upper_right_speed = cos(((degree - 30) * PI / 180)) * speed + speed_w;
     upper_right_motor_.SetSpeed( upper_right_speed);
 };
