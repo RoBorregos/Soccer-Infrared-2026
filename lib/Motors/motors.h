@@ -2,13 +2,19 @@
 #define MOTORS_H
 #pragma once
 
+// Tentative; untested.
+#define LC 0
+#define UL 1
+#define UR 2
+
 class Motors {
 public:
     Motors(int kMotor1Pwm, int kMotor1In1, int kMotor1In2,
         int kMotor2Pwm, int kMotor2In1, int kMotor2In2,
         int kMotor3Pwm, int kMotor3In1, int kMotor3In2);
     void InitializeMotor();
-    void MoveMotor(float speedPercent, bool direction);
+    void RotateRobot(float speedPercent, bool direction);
+    void MoveRobot(float speedPercent, bool direction, int exceptIndex);
     void StopMotor();
 
 private:

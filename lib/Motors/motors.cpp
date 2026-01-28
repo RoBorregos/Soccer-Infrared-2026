@@ -24,6 +24,14 @@ static void forEachMove(MoveAction action, float speedPercent, bool direction) {
     }
 }
 
+static void forEachMoveExcept(MoveAction action, float speedPercent, bool direction, int exceptIndex) {
+    for (int i = 0; i < 3; ++i) {
+        if (i != exceptIndex && motors[i]) {
+            (motors[i]->*action)(speedPercent, direction);
+        }
+    }
+}
+
 Motors::Motors(int kMotor1Pwm, int kMotor1In1, int kMotor1In2,
         int kMotor2Pwm, int kMotor2In1, int kMotor2In2,
         int kMotor3Pwm, int kMotor3In1, int kMotor3In2) {
@@ -36,8 +44,12 @@ void Motors::InitializeMotor() {
     forEach(&Motor::InitializeMotor);
 }
 
-void Motors::MoveMotor(float speedPercent, bool direction) {
+void Motors::RotateRobot(float speedPercent, bool direction) {
     forEachMove(&Motor::MoveMotor, speedPercent, direction);
+}
+
+void Motors::MoveRobot(float speedPercent, bool direction, int exceptIndex) {
+    forEachMoveExcept(&Motor::MoveMotor, speedPercent, direction, exceptIndex);
 }
 
 void Motors::StopMotor() {
