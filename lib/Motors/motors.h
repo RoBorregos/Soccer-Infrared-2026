@@ -1,32 +1,22 @@
-#ifndef motors_h
-#define motors_h
+#ifndef MOTORS_H
+#define MOTORS_H
+#pragma once
 
-#include "Arduino.h"
-#include "motor.h"
-#include "constants.h"
-
-class Motors
-{
+class Motors {
 public:
-    Motor upper_right_motor_;
-    Motor upper_left_motor_;
-    Motor lower_center_motor_;
-    Motors(uint8_t speed1, uint8_t in1_1, uint8_t in2_1,
-           uint8_t speed2, uint8_t in1_2, uint8_t in2_2,
-           uint8_t speed3, uint8_t in1_3, uint8_t in2_3);
-    void InitializeMotors(uint8_t switchPin);
-    void StartStopMotors(uint8_t switchPin);
-    void SetAllSpeeds(uint8_t pwm);
-    void StopAllMotors();
-    
-    void GetAllSpeeds();
-    void MoveOmnidirectionalBase(double target_angle, float speed, double speed_w);
-    void MoveUL(double degree, float speed, double speed_w);
-    void MoveLC(double degree, float speed, double speed_w);
-    void MoveUR(double degree, float speed, double speed_w);
-    void LineCorrection(double degree);
+    Motors(int kMotor1Pwm, int kMotor1In1, int kMotor1In2,
+        int kMotor2Pwm, int kMotor2In1, int kMotor2In2,
+        int kMotor3Pwm, int kMotor3In1, int kMotor3In2);
+    void InitializeMotor();
+    void MoveMotor(float speedPercent, bool direction);
+    void StopMotor();
 
 private:
-};
+    int _kMotor1Pwm; int _kMotor1In1; int _kMotor1In2;
+    int _kMotor2Pwm; int _kMotor2In1; int _kMotor2In2;
+    int _kMotor3Pwm; int _kMotor3In1; int _kMotor3In2;
 
-#endif
+    int motor1; int motor2; int motor3;
+};  
+
+#endif // MOTORS_H
