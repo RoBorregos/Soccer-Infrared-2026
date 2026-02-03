@@ -1,76 +1,67 @@
+#include <Arduino.h>
+#include "constants.h"
+#include "motor.h"
 #include "motors.h"
 
-Motors::Motors(uint8_t speed1, uint8_t in1_1, uint8_t in2_1, uint8_t speed2, uint8_t in1_2, uint8_t in2_2, uint8_t speed3, uint8_t in1_3, uint8_t in2_3) :
-    upper_left_motor_(speed1, in1_1, in2_1),
-    lower_center_motor_(speed2, in1_2, in2_2),
-    upper_right_motor_(speed3, in1_3, in2_3)
-{};
+typedef void (Motor::*NoArgAction)();
+typedef void (Motor::*MoveAction)(float, bool);
 
-void Motors::InitializeMotors(uint8_t switchPin)
-{
-    upper_left_motor_.InitializeMotor();
-    lower_center_motor_.InitializeMotor();
-    upper_right_motor_.InitializeMotor();
-    pinMode(switchPin, INPUT_PULLUP);
-};
+static Motor* motors[3] = { nullptr, nullptr, nullptr };
 
-void Motors::StartStopMotors(uint8_t switchPin)
-{
-    if (digitalRead(switchPin) == HIGH) {
-        Serial.println("Switch off. Stopping all motors...");
-        StopAllMotors(); // Stop all motors
-        while (digitalRead(switchPin) == HIGH) {
-            // Stay in this loop until the switch is activated again
+static void forEach(NoArgAction action) {
+    for (int i = 0; i < 3; ++i) {
+        if (motors[i]) {
+            (motors[i]->*action)();
         }
-        Serial.println("Switch activated again. Resuming...");
     }
 }
-void Motors::SetAllSpeeds(uint8_t pwm)
-{
-    upper_left_motor_.SetPWM(pwm);
-    lower_center_motor_.SetPWM(pwm);
-    upper_right_motor_.SetPWM(pwm);
-};
 
-void Motors::StopAllMotors()
-{
-    upper_left_motor_.StopMotor();
-    lower_center_motor_.StopMotor();
-    upper_right_motor_.StopMotor();
-};
+static void forEachMove(MoveAction action, float speedPercent, bool direction) {
+    for (int i = 0; i < 3; ++i) {
+        if (motors[i]) {
+            (motors[i]->*action)(speedPercent, direction);
+        }
+    }
+}
 
-void Motors::MoveUL(double degree, float speed, double speed_w)
-{
-    float upper_left_speed = cos(((degree - 150) * PI / 180)) * speed + speed_w;
-    // float lower_center_speed = cos(((degree - 270) * PI / 180)) * speed + speed_w;
-    // float upper_right_speed = cos(((degree - 30) * PI / 180)) * speed + speed_w;
-    upper_left_motor_.SetSpeed(upper_left_speed);
-};
+static void forEachMoveExcept(MoveAction action, float speedPercent, bool direction, int exceptIndex) {
+    for (int i = 0; i < 3; ++i) {
+        if (i != exceptIndex && motors[i]) {
+            (motors[i]->*action)(speedPercent, direction);
+        }
+    }
+}
 
+Motors::Motors(int kMotor1Pwm, int kMotor1In1, int kMotor1In2,
+        int kMotor2Pwm, int kMotor2In1, int kMotor2In2,
+        int kMotor3Pwm, int kMotor3In1, int kMotor3In2) {
+            motors[0] = new Motor(kMotor1Pwm, kMotor1In1, kMotor1In2);
+            motors[1] = new Motor(kMotor2Pwm, kMotor2In1, kMotor2In2);
+            motors[2] = new Motor(kMotor3Pwm, kMotor3In1, kMotor3In2);
+}
 
-void Motors::MoveLC(double degree, float speed, double speed_w)
-{
-    // float upper_left_speed = cos(((degree - 150) * PI / 180)) * speed + speed_w;
-    float lower_center_speed = cos(((degree - 270) * PI / 180)) * speed + speed_w;
-    // float upper_right_speed = cos(((degree - 30) * PI / 180)) * speed + speed_w;
-    lower_center_motor_.SetSpeed(lower_center_speed);
-};
+void Motors::InitializeMotor() {
+    forEach(&Motor::InitializeMotor);
+}
 
+void Motors::RotateRobot(float speedPercent, bool direction) {
+    forEachMove(&Motor::MoveMotor, speedPercent, direction);
+}
 
-void Motors::MoveUR(double degree, float speed, double speed_w)
-{
-    // float upper_left_speed = cos(((degree - 150) * PI / 180)) * speed + speed_w;
-    // float lower_center_speed = cos(((degree - 270) * PI / 180)) * speed + speed_w;
-    float upper_right_speed = cos(((degree - 30) * PI / 180)) * speed + speed_w;
-    upper_right_motor_.SetSpeed( upper_right_speed);
-};
+void Motors::MoveRobot(float speedPercent, bool direction, int exceptIndex) {
+    forEachMoveExcept(&Motor::MoveMotor, speedPercent, direction, exceptIndex);
+}
 
-void Motors::MoveOmnidirectionalBase(double degree, float speed, double speed_w)
-{
-    float upper_left_speed = cos(((degree - 150) * PI / 180)) * speed + speed_w;
-    float lower_center_speed = cos(((degree - 270) * PI / 180)) * speed + speed_w;
-    float upper_right_speed = cos(((degree - 30) * PI / 180)) * speed + speed_w;
-    upper_left_motor_.SetSpeed(upper_left_speed);
-    lower_center_motor_.SetSpeed(lower_center_speed);
-    upper_right_motor_.SetSpeed( upper_right_speed);
-};
+void Motors::StopMotor() {
+    forEach(&Motor::StopMotor);
+}
+
+void Motors::moveRobotOmnidirectional(float angleDegrees, float speedPercent, float rotationalSpeed) {
+    float upper_left_speed = cos((angleDegrees - 150) * PI / 180.0f) * speedPercent + rotationalSpeed;
+    float lower_center_speed = cos((angleDegrees - 270) * PI / 180.0f) * speedPercent + rotationalSpeed;
+    float upper_right_speed = cos((angleDegrees - 30) * PI / 180.0f) * speedPercent + rotationalSpeed;
+
+    if (motors[0]) motors[0]->SetSpeed(upper_left_speed);
+    if (motors[1]) motors[1]->SetSpeed(lower_center_speed);
+    if (motors[2]) motors[2]->SetSpeed(upper_right_speed);
+}
