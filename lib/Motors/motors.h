@@ -2,6 +2,8 @@
 #define MOTORS_H
 #pragma once
 
+#define MOTORS_AMOUT 3
+
 // Tentative; untested.
 #define LC 0
 #define UL 1

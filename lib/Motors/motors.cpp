@@ -6,26 +6,28 @@
 typedef void (Motor::*NoArgAction)();
 typedef void (Motor::*MoveAction)(float, bool);
 
-static Motor* motors[3] = { nullptr, nullptr, nullptr };
+static Motor* motors[MOTORS_AMOUT] = { nullptr, nullptr, nullptr };
 
 static void forEach(NoArgAction action) {
-    for (int i = 0; i < 3; ++i) {
+    for (int i = 0; i < MOTORS_AMOUT; ++i) {
         if (motors[i]) {
             (motors[i]->*action)();
         }
     }
 }
 
+//debug
 static void forEachMove(MoveAction action, float speedPercent, bool direction) {
-    for (int i = 0; i < 3; ++i) {
+    for (int i = 0; i < MOTORS_AMOUT; ++i) {
         if (motors[i]) {
             (motors[i]->*action)(speedPercent, direction);
         }
     }
 }
 
+//debug
 static void forEachMoveExcept(MoveAction action, float speedPercent, bool direction, int exceptIndex) {
-    for (int i = 0; i < 3; ++i) {
+    for (int i = 0; i < MOTORS_AMOUT; ++i) {
         if (i != exceptIndex && motors[i]) {
             (motors[i]->*action)(speedPercent, direction);
         }
