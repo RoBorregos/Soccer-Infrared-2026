@@ -11,6 +11,7 @@ public:
     void MoveMotor(float speedPercent, bool direction);
     void StopMotor();
     void SetPWM(const uint8_t pwm);
+    void SetSpeed(float speedPercent);
 private:
     int pwmPin_;
     int in1Pin_;

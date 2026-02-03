@@ -16,6 +16,7 @@ public:
     void RotateRobot(float speedPercent, bool direction);
     void MoveRobot(float speedPercent, bool direction, int exceptIndex);
     void StopMotor();
+    void moveRobotOmnidirectional(float angleDegrees, float speedPercent, float rotationalSpeed);
 
 private:
     int _kMotor1Pwm; int _kMotor1In1; int _kMotor1In2;

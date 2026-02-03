@@ -55,3 +55,13 @@ void Motors::MoveRobot(float speedPercent, bool direction, int exceptIndex) {
 void Motors::StopMotor() {
     forEach(&Motor::StopMotor);
 }
+
+void Motors::moveRobotOmnidirectional(float angleDegrees, float speedPercent, float rotationalSpeed) {
+    float upper_left_speed = cos((angleDegrees - 150) * PI / 180.0f) * speedPercent + rotationalSpeed;
+    float lower_center_speed = cos((angleDegrees - 270) * PI / 180.0f) * speedPercent + rotationalSpeed;
+    float upper_right_speed = cos((angleDegrees - 30) * PI / 180.0f) * speedPercent + rotationalSpeed;
+
+    if (motors[0]) motors[0]->SetSpeed(upper_left_speed);
+    if (motors[1]) motors[1]->SetSpeed(lower_center_speed);
+    if (motors[2]) motors[2]->SetSpeed(upper_right_speed);
+}
