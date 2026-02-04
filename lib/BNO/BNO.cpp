@@ -7,7 +7,7 @@ Bno::Bno()
   yaw = 0;
 }
 
-void Bno::InitializeBNO()
+void Bno::begin()
 {
 Serial.println("Orientation Sensor Test"); Serial.println("");
   if(!bno.begin(OPERATION_MODE_IMUPLUS))

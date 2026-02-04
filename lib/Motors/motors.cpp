@@ -1,69 +1,64 @@
-#include <Arduino.h>
-#include "constants.h"
-#include "motor.h"
+
 #include "motors.h"
 
-typedef void (Motor::*NoArgAction)();
-typedef void (Motor::*MoveAction)(float, bool);
+Motors::Motors() {
+    motor1.pwmPin = constants::kMotor1Pwm;
+    motor1.in1Pin = constants::kMotor1In1;
+    motor1.in2Pin = constants::kMotor1In2;
 
-static Motor* motors[MOTORS_AMOUT] = { nullptr, nullptr, nullptr };
+    motor2.pwmPin = constants::kMotor2Pwm;
+    motor2.in1Pin = constants::kMotor2In1;
+    motor2.in2Pin = constants::kMotor2In2;
 
-static void forEach(NoArgAction action) {
-    for (int i = 0; i < MOTORS_AMOUT; ++i) {
-        if (motors[i]) {
-            (motors[i]->*action)();
-        }
-    }
+    motor3.pwmPin = constants::kMotor3Pwm;
+    motor3.in1Pin = constants::kMotor3In1;
+    motor3.in2Pin = constants::kMotor3In2;
 }
 
-//debug
-static void forEachMove(MoveAction action, float speedPercent, bool direction) {
-    for (int i = 0; i < MOTORS_AMOUT; ++i) {
-        if (motors[i]) {
-            (motors[i]->*action)(speedPercent, direction);
-        }
-    }
+void Motors::begin() {
+    motor1.begin();
+    motor2.begin();
+    motor3.begin();
 }
 
-//debug
-static void forEachMoveExcept(MoveAction action, float speedPercent, bool direction, int exceptIndex) {
-    for (int i = 0; i < MOTORS_AMOUT; ++i) {
-        if (i != exceptIndex && motors[i]) {
-            (motors[i]->*action)(speedPercent, direction);
-        }
-    }
+void Motors::stop() {
+    motor1.stop();
+    motor2.stop();
+    motor3.stop();
 }
 
-Motors::Motors(int kMotor1Pwm, int kMotor1In1, int kMotor1In2,
-        int kMotor2Pwm, int kMotor2In1, int kMotor2In2,
-        int kMotor3Pwm, int kMotor3In1, int kMotor3In2) {
-            motors[0] = new Motor(kMotor1Pwm, kMotor1In1, kMotor1In2);
-            motors[1] = new Motor(kMotor2Pwm, kMotor2In1, kMotor2In2);
-            motors[2] = new Motor(kMotor3Pwm, kMotor3In1, kMotor3In2);
-}
-
-void Motors::InitializeMotor() {
-    forEach(&Motor::InitializeMotor);
-}
-
-void Motors::RotateRobot(float speedPercent, bool direction) {
-    forEachMove(&Motor::MoveMotor, speedPercent, direction);
-}
-
-void Motors::MoveRobot(float speedPercent, bool direction, int exceptIndex) {
-    forEachMoveExcept(&Motor::MoveMotor, speedPercent, direction, exceptIndex);
-}
-
-void Motors::StopMotor() {
-    forEach(&Motor::StopMotor);
-}
-
-void Motors::moveRobotOmnidirectional(float angleDegrees, float speedPercent, float rotationalSpeed) {
+void Motors::move(float angleDegrees, float speedPercent, float rotationalSpeed) {
     float upper_left_speed = cos((angleDegrees - 150) * PI / 180.0f) * speedPercent + rotationalSpeed;
     float lower_center_speed = cos((angleDegrees - 270) * PI / 180.0f) * speedPercent + rotationalSpeed;
     float upper_right_speed = cos((angleDegrees - 30) * PI / 180.0f) * speedPercent + rotationalSpeed;
 
-    if (motors[0]) motors[0]->SetSpeed(upper_left_speed);
-    if (motors[1]) motors[1]->SetSpeed(lower_center_speed);
-    if (motors[2]) motors[2]->SetSpeed(upper_right_speed);
+    motor1.setSpeed(upper_left_speed);
+    motor2.setSpeed(lower_center_speed);
+    motor3.setSpeed(upper_right_speed);
+}
+
+void Motors::Motor::begin() {
+    pinMode(pwmPin, OUTPUT);
+    pinMode(in1Pin, OUTPUT);
+    pinMode(in2Pin, OUTPUT);
+    stop();
+}
+
+void Motors::Motor::setSpeed(float speed) {
+    speed = constrain(speed, -255.0f, 255.0f);
+
+    if (speed > 0) {
+        digitalWrite(in1Pin, LOW);
+        digitalWrite(in2Pin, HIGH);
+    } else {
+        digitalWrite(in1Pin, HIGH);
+        digitalWrite(in2Pin, LOW);
+    }
+    analogWrite(pwmPin, floor(abs(speed)));
+}
+
+void Motors::Motor::stop() {
+    digitalWrite(in1Pin, HIGH);
+    digitalWrite(in2Pin, HIGH);
+    setSpeed(0);
 }

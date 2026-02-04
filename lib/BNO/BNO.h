@@ -11,7 +11,7 @@ class Bno
 {
   public:
     Bno();
-    void InitializeBNO();
+    void begin();
     double GetBNOData();
   
   private:
