@@ -1,25 +1,33 @@
-#ifndef constants_h
-#define constants_h
+#pragma once
 #include <stdint.h>
 
 
-namespace constants {
+namespace Constants {
 
     //--------------------Pines for arduino mega--------------------
-    const uint8_t kMotor1In1 = 23; // Left
-    const uint8_t kMotor1In2 = 22;
-    const uint8_t kMotor1Pwm = 6;
 
-    const uint8_t kMotor2In1 = 24; // Center
-    const uint8_t kMotor2In2 = 25; 
-    const uint8_t kMotor2Pwm = 5;
+    namespace Motor {
+        namespace Left {
+            const uint8_t in1 = 26;
+            const uint8_t in2 = 27;
+            const uint8_t pwm = 4;
+        }
 
-    const uint8_t kMotor3In1 = 27; // Right
-    const uint8_t kMotor3In2 = 26;
-    const uint8_t kMotor3Pwm = 4;
+        namespace Center {
+            const uint8_t in1 = 25;
+            const uint8_t in2 = 24; 
+            const uint8_t pwm = 5;
+        }
 
-    const double kMaxPWM = 255.0; // We set a max PWM to limit the motors movement for better performance and control
-    const double kMinPWM = 40.0; // We set the minimum PWM that the robot needs to move
+        namespace Right {
+            const uint8_t in1 = 23;
+            const uint8_t in2 = 22;
+            const uint8_t pwm = 6;
+        }
+
+        const double minPWM = 40.0; // We set the minimum PWM that the robot needs to move
+        const double maxPWM = 255.0; // We set a max PWM to limit the motors movement for better performance and control
+    }
 
     //--------------------Pins for multiplexer and phototransistors--------------------
 
@@ -58,5 +66,3 @@ namespace constants {
     const int kRightGoalKeeperTresholdX = 275; // Maximum distance to the goal in cm
     const uint8_t kGoalKeeperTresholdX = 15;
 }
-
-#endif  

@@ -19,6 +19,8 @@ public:
     Motors();
 
     struct Motor {
+        int id;
+
         int pwmPin;
         int in1Pin;
         int in2Pin;
@@ -32,9 +34,9 @@ public:
     void stop();
     void move(float angleDegrees, float speed, float rotationalSpeed = 0);
 
-    Motor motor1;
-    Motor motor2;
-    Motor motor3;
+    Motor left;
+    Motor center;
+    Motor right;
 
 private:
 };  
