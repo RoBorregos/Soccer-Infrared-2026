@@ -1,21 +1,18 @@
-
 #include "robot.h"
 
-Robot::Robot() {
-    left.id = 1;
-    left.pwmPin = Constants::Motor::Left::pwm;
-    left.in1Pin = Constants::Motor::Left::in1;
-    left.in2Pin = Constants::Motor::Left::in2;
-
-    center.id = 2;
-    center.pwmPin = Constants::Motor::Center::pwm;
-    center.in1Pin = Constants::Motor::Center::in1;
-    center.in2Pin = Constants::Motor::Center::in2;
-
-    right.id = 3;
-    right.pwmPin = Constants::Motor::Right::pwm;
-    right.in1Pin = Constants::Motor::Right::in1;
-    right.in2Pin = Constants::Motor::Right::in2;
+Robot::Robot()
+    : left(1,
+            Constants::Motor::Left::pwm,
+            Constants::Motor::Left::in1,
+            Constants::Motor::Left::in2),
+      center(2,
+             Constants::Motor::Center::pwm,
+             Constants::Motor::Center::in1,
+             Constants::Motor::Center::in2),
+      right(3,
+            Constants::Motor::Right::pwm,
+            Constants::Motor::Right::in1,
+            Constants::Motor::Right::in2) {
 }
 
 void Robot::begin() {
@@ -38,40 +35,4 @@ void Robot::move(float angleDegrees, float speedPercent, float rotationalSpeed) 
     left.setSpeed(upper_left_speed);
     center.setSpeed(lower_center_speed);
     right.setSpeed(upper_right_speed);
-}
-
-void Robot::Motor::begin() {
-    pinMode(pwmPin, OUTPUT);
-    pinMode(in1Pin, OUTPUT);
-    pinMode(in2Pin, OUTPUT);
-    stop();
-}
-
-void Robot::Motor::setSpeed(float speed) {
-    speed = constrain(speed, -255.0f, 255.0f);
-
-    if (speed < 0) {
-        digitalWrite(in1Pin, LOW);
-        digitalWrite(in2Pin, HIGH);
-    } else {
-        digitalWrite(in1Pin, HIGH);
-        digitalWrite(in2Pin, LOW);
-    }
-
-    int pwm = floor(abs(speed));
-    if (id == 2) pwm -= 15; // Calibration for motor 2
-    
-    pwm = constrain(pwm, 0, 255);
-
-    Serial.print("Motor ");
-    Serial.print(id);
-    Serial.print(" Speed: ");
-    Serial.println(pwm);
-    analogWrite(pwmPin, pwm);
-}
-
-void Robot::Motor::stop() {
-    digitalWrite(in1Pin, HIGH);
-    digitalWrite(in2Pin, HIGH);
-    setSpeed(0);
 }
