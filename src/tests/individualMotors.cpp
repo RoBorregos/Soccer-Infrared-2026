@@ -1,24 +1,36 @@
-#include "robot.h"
-Robot robot;
+#include "motor.h"
+
+auto left = Motor(1,
+    Constants::Motor::Left::pwm,
+    Constants::Motor::Left::in1,
+    Constants::Motor::Left::in2
+);
+        
+auto center = Motor(2,
+    Constants::Motor::Center::pwm,
+    Constants::Motor::Center::in1,
+    Constants::Motor::Center::in2
+);
+
+auto right = Motor(3,
+    Constants::Motor::Right::pwm,
+    Constants::Motor::Right::in1,
+    Constants::Motor::Right::in2
+);
+
+void moveMotor(Motor &motor, int speed) {
+    motor.setSpeed(speed);
+    delay(1000);
+    motor.stop();
+}
 
 void setup(){
-    // MOVE INDIVIDUAL MOTORS
-    robot.left.setSpeed(100);
+    moveMotor(left, 100);
     delay(1000);
-    robot.left.stop();
-    delay(500);
-
-    robot.center.setSpeed(100);
+    moveMotor(center, 100);
     delay(1000);
-    robot.center.stop();
-    delay(500);
-
-    robot.right.setSpeed(100);
-    delay(1000);
-    robot.right.stop();
-    delay(500); 
+    moveMotor(right, 100);
 }
 
 void loop() {
-    
 }
