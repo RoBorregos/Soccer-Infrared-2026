@@ -1,22 +1,20 @@
+#ifndef Bno_h
+#define Bno_h
 
-# ifndef Bno_h
-# define Bno_h
+#include <Arduino.h>
+#include <Wire.h>
+#include <Adafruit_Sensor.h>
+#include <Adafruit_BNO055.h>
 
-# include <Arduino.h>
-# include <Wire.h>
-# include <Adafruit_Sensor.h>
-# include <Adafruit_BNO055.h>
-
-class Bno
-{
-  public:
+class Bno {
+public:
     Bno();
     void begin();
     double GetBNOData();
   
-  private:
+private:
     Adafruit_BNO055 bno = Adafruit_BNO055(55, 0x28, &Wire);
     double yaw;
 };
 
-# endif
+#endif
