@@ -1,6 +1,4 @@
 #include <Arduino.h>
-#include <ArduinoSTL.h>
-#include <vector>
 #include "BNO.h"
 #include "constants.h"
 #include "robot.h"
@@ -19,18 +17,18 @@ void setup() {
     Serial.begin(9600);
     robot.begin();
     bno.begin();
-    Serial.println("Setup complete");
     delay(2000);
 }
 
 void loop() {
     double yaw = bno.GetBNOData();
+    Serial.print("Yaw: ");
+    Serial.println(yaw);
     double targetYaw = 0.0;
     PIDParameters pidParams(KP, KI, KD, Constants::Motor::maxPWM, Constants::Motor::minPWM, ERROR_THRESHOLD);
 
     pidParams.target = targetYaw;
     pidParams.current_value = yaw;
     double pidOutput = PID::calculate(pidParams);
-    Serial.print(pidOutput);
     robot.move(0, 0.5, pidOutput);
 }

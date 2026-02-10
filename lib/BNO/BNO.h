@@ -1,5 +1,4 @@
-#ifndef Bno_h
-#define Bno_h
+#pragma once
 
 #include <Arduino.h>
 #include <Wire.h>
@@ -16,5 +15,3 @@ private:
     Adafruit_BNO055 bno = Adafruit_BNO055(55, 0x28, &Wire);
     double yaw;
 };
-
-#endif
