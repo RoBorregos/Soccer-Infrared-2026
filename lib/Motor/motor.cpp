@@ -1,56 +1,44 @@
-#include "Arduino.h"
 #include "motor.h"
-#include "constants.h"
 
-Motor::Motor(const uint8_t inPWM, const uint8_t in1, const  uint8_t in2)
-{
-    inPWM_ = inPWM;
-    in1_ = in1;
-    in2_ = in2;
+Motor::Motor(int id, int pwmPin, int in1Pin, int in2Pin) {
+    this->id = id;
+    this->pwmPin = pwmPin;
+    this->in1Pin = in1Pin;
+    this->in2Pin = in2Pin;
 }
 
-void Motor::InitializeMotor()
-{
-    pinMode(in1_, OUTPUT);
-    pinMode(in2_, OUTPUT);
-    pinMode(inPWM_, OUTPUT);
-};
+void Motor::begin() {
+    pinMode(pwmPin, OUTPUT);
+    pinMode(in1Pin, OUTPUT);
+    pinMode(in2Pin, OUTPUT);
+    stop();
+}
 
-void Motor::SetPWM(const uint8_t pwm)
-{
-    analogWrite(inPWM_, pwm);
-};
+void Motor::setSpeed(float speed) {
+    speed = constrain(speed, -255.0f, 255.0f);
 
-void Motor::MovePositive()
-{
-    digitalWrite(in1_, HIGH);
-    digitalWrite(in2_, LOW);
-};
-
-void Motor::MoveNegative()
-{
-    digitalWrite(in1_, LOW);
-    digitalWrite(in2_, HIGH);
-};
-
-void Motor::StopMotor()
-{
-    digitalWrite(in1_, LOW);
-    digitalWrite(in2_, LOW);
-};
-
-void Motor::SetSpeed(float speed) {
-    if (speed >= 0) { 
-        MovePositive();
+    if (speed < 0) {
+        digitalWrite(in1Pin, LOW);
+        digitalWrite(in2Pin, HIGH);
     } else {
-        MoveNegative();
+        digitalWrite(in1Pin, HIGH);
+        digitalWrite(in2Pin, LOW);
     }
-    speed = abs(speed);
-    speed = speed * kMaxPWM;
-    if (speed > kMaxPWM) {
-        speed = kMaxPWM;
-    } else if (speed < kMinPWM) {
-        speed = 0;
-    }
-    analogWrite(inPWM_, speed);
+
+    int pwm = floor(abs(speed));
+    if (id == 2) pwm -= 15; // Calibration for motor 2
+    
+    pwm = constrain(pwm, 0, 255);
+
+    Serial.print("Motor ");
+    Serial.print(id);
+    Serial.print(" Speed: ");
+    Serial.println(pwm);
+    analogWrite(pwmPin, pwm);
+}
+
+void Motor::stop() {
+    digitalWrite(in1Pin, HIGH);
+    digitalWrite(in2Pin, HIGH);
+    setSpeed(0);
 }

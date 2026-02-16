@@ -1,76 +1,77 @@
+
 #include "motors.h"
 
-Motors::Motors(uint8_t speed1, uint8_t in1_1, uint8_t in2_1, uint8_t speed2, uint8_t in1_2, uint8_t in2_2, uint8_t speed3, uint8_t in1_3, uint8_t in2_3) :
-    upper_left_motor_(speed1, in1_1, in2_1),
-    lower_center_motor_(speed2, in1_2, in2_2),
-    upper_right_motor_(speed3, in1_3, in2_3)
-{};
+Motors::Motors() {
+    left.id = 1;
+    left.pwmPin = Constants::Motor::Left::pwm;
+    left.in1Pin = Constants::Motor::Left::in1;
+    left.in2Pin = Constants::Motor::Left::in2;
 
-void Motors::InitializeMotors(uint8_t switchPin)
-{
-    upper_left_motor_.InitializeMotor();
-    lower_center_motor_.InitializeMotor();
-    upper_right_motor_.InitializeMotor();
-    pinMode(switchPin, INPUT_PULLUP);
-};
+    center.id = 2;
+    center.pwmPin = Constants::Motor::Center::pwm;
+    center.in1Pin = Constants::Motor::Center::in1;
+    center.in2Pin = Constants::Motor::Center::in2;
 
-void Motors::StartStopMotors(uint8_t switchPin)
-{
-    if (digitalRead(switchPin) == HIGH) {
-        Serial.println("Switch off. Stopping all motors...");
-        StopAllMotors(); // Stop all motors
-        while (digitalRead(switchPin) == HIGH) {
-            // Stay in this loop until the switch is activated again
-        }
-        Serial.println("Switch activated again. Resuming...");
-    }
+    right.id = 3;
+    right.pwmPin = Constants::Motor::Right::pwm;
+    right.in1Pin = Constants::Motor::Right::in1;
+    right.in2Pin = Constants::Motor::Right::in2;
 }
-void Motors::SetAllSpeeds(uint8_t pwm)
-{
-    upper_left_motor_.SetPWM(pwm);
-    lower_center_motor_.SetPWM(pwm);
-    upper_right_motor_.SetPWM(pwm);
-};
 
-void Motors::StopAllMotors()
-{
-    upper_left_motor_.StopMotor();
-    lower_center_motor_.StopMotor();
-    upper_right_motor_.StopMotor();
-};
+void Motors::begin() {
+    left.begin();
+    center.begin();
+    right.begin();
+}
 
-void Motors::MoveUL(double degree, float speed, double speed_w)
-{
-    float upper_left_speed = cos(((degree - 150) * PI / 180)) * speed + speed_w;
-    float lower_center_speed = cos(((degree - 270) * PI / 180)) * speed + speed_w;
-    float upper_right_speed = cos(((degree - 30) * PI / 180)) * speed + speed_w;
-    upper_left_motor_.SetSpeed(upper_left_speed);
-};
+void Motors::stop() {
+    left.stop();
+    center.stop();
+    right.stop();
+}
 
+void Motors::move(float angleDegrees, float speedPercent, float rotationalSpeed) {
+    float upper_left_speed = cos((angleDegrees - 150) * PI / 180.0f) * speedPercent + rotationalSpeed;
+    float lower_center_speed = cos((angleDegrees - 270) * PI / 180.0f) * speedPercent + rotationalSpeed;
+    float upper_right_speed = cos((angleDegrees - 30) * PI / 180.0f) * speedPercent + rotationalSpeed;
 
-void Motors::MoveLC(double degree, float speed, double speed_w)
-{
-    float upper_left_speed = cos(((degree - 150) * PI / 180)) * speed + speed_w;
-    float lower_center_speed = cos(((degree - 270) * PI / 180)) * speed + speed_w;
-    float upper_right_speed = cos(((degree - 30) * PI / 180)) * speed + speed_w;
-    lower_center_motor_.SetSpeed(lower_center_speed);
-};
+    left.setSpeed(upper_left_speed);
+    center.setSpeed(lower_center_speed);
+    right.setSpeed(upper_right_speed);
+}
 
+void Motors::Motor::begin() {
+    pinMode(pwmPin, OUTPUT);
+    pinMode(in1Pin, OUTPUT);
+    pinMode(in2Pin, OUTPUT);
+    stop();
+}
 
-void Motors::MoveUR(double degree, float speed, double speed_w)
-{
-    float upper_left_speed = cos(((degree - 150) * PI / 180)) * speed + speed_w;
-    float lower_center_speed = cos(((degree - 270) * PI / 180)) * speed + speed_w;
-    float upper_right_speed = cos(((degree - 30) * PI / 180)) * speed + speed_w;
-    upper_right_motor_.SetSpeed( upper_right_speed);
-};
+void Motors::Motor::setSpeed(float speed) {
+    speed = constrain(speed, -255.0f, 255.0f);
 
-void Motors::MoveOmnidirectionalBase(double degree, float speed, double speed_w)
-{
-    float upper_left_speed = cos(((degree - 150) * PI / 180)) * speed + speed_w;
-    float lower_center_speed = cos(((degree - 270) * PI / 180)) * speed + speed_w;
-    float upper_right_speed = cos(((degree - 30) * PI / 180)) * speed + speed_w;
-    upper_left_motor_.SetSpeed(upper_left_speed);
-    lower_center_motor_.SetSpeed(lower_center_speed);
-    upper_right_motor_.SetSpeed( upper_right_speed);
-};
+    if (speed < 0) {
+        digitalWrite(in1Pin, LOW);
+        digitalWrite(in2Pin, HIGH);
+    } else {
+        digitalWrite(in1Pin, HIGH);
+        digitalWrite(in2Pin, LOW);
+    }
+
+    int pwm = floor(abs(speed));
+    if (id == 2) pwm -= 15; // Calibration for motor 2
+    
+    pwm = constrain(pwm, 0, 255);
+
+    Serial.print("Motor ");
+    Serial.print(id);
+    Serial.print(" Speed: ");
+    Serial.println(pwm);
+    analogWrite(pwmPin, pwm);
+}
+
+void Motors::Motor::stop() {
+    digitalWrite(in1Pin, HIGH);
+    digitalWrite(in2Pin, HIGH);
+    setSpeed(0);
+}

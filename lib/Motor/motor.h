@@ -1,26 +1,18 @@
-#ifndef motor_h
-#define motor_h
-
-#include <Arduino.h>
 #pragma once
+#include <Arduino.h>
+#include <ArduinoSTL.h>
+#include "constants.h"
 
-class Motor
-{
+class Motor {
 public:
-    Motor(const uint8_t inPWM,const  uint8_t in1, const uint8_t in2);
-    void InitializeMotor();
-    void MovePositive();
-    void MoveNegative();
-    void StopMotor();
-    void SetPWM(const uint8_t pwm);
-    void SetSpeed(float speed);
+    Motor(int id, int pwmPin, int in1Pin, int in2Pin);
+    void begin();
+    void setSpeed(float speed);
+    void stop();
 
 private:
-    uint8_t inPWM_;
-    uint8_t in1_;
-    uint8_t in2_;
-    uint16_t frequency = 1000;
-    uint8_t resolution = 8;
+    int id;
+    int pwmPin;
+    int in1Pin;
+    int in2Pin;
 };
-
-#endif

@@ -1,32 +1,44 @@
-#ifndef motors_h
-#define motors_h
+#ifndef MOTORS_H
+#define MOTORS_H
+#include <vector>
+#include <Arduino.h>
+#include <ArduinoSTL.h>
+#include <memory>
 
-#include "Arduino.h"
-#include "motor.h"
 #include "constants.h"
 
-class Motors
-{
+#define MOTORS_AMOUT 3
+
+// Tentative; untested.
+#define LC 0
+#define UL 1
+#define UR 2
+
+class Motors {
 public:
-    Motor upper_right_motor_;
-    Motor upper_left_motor_;
-    Motor lower_center_motor_;
-    Motors(uint8_t speed1, uint8_t in1_1, uint8_t in2_1,
-           uint8_t speed2, uint8_t in1_2, uint8_t in2_2,
-           uint8_t speed3, uint8_t in1_3, uint8_t in2_3);
-    void InitializeMotors(uint8_t switchPin);
-    void StartStopMotors(uint8_t switchPin);
-    void SetAllSpeeds(uint8_t pwm);
-    void StopAllMotors();
-    
-    void GetAllSpeeds();
-    void MoveOmnidirectionalBase(double target_angle, float speed, double speed_w);
-    void MoveUL(double degree, float speed, double speed_w);
-    void MoveLC(double degree, float speed, double speed_w);
-    void MoveUR(double degree, float speed, double speed_w);
-    void LineCorrection(double degree);
+    Motors();
+
+    struct Motor {
+        int id;
+
+        int pwmPin;
+        int in1Pin;
+        int in2Pin;
+
+        void begin();
+        void setSpeed(float speed);
+        void stop();
+    };
+
+    void begin();
+    void stop();
+    void move(float angleDegrees, float speed, float rotationalSpeed = 0);
+
+    Motor left;
+    Motor center;
+    Motor right;
 
 private:
-};
+};  
 
-#endif
+#endif // MOTORS_H
