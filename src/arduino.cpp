@@ -9,11 +9,11 @@
 Robot robot;
 Bno bno;
 
-#define KP 0.1
-#define KI 0.01
-#define KD 0.05
+#define KP 0.0
+#define KI 0
+#define KD 0
 
-#define ERROR_THRESHOLD 5.0
+#define ERROR_THRESHOLD 5
 
 void setup() {
     Serial.begin(9600);
@@ -26,11 +26,11 @@ void setup() {
 void loop() {
     double yaw = bno.GetBNOData();
     double targetYaw = 0.0;
-    PIDParameters pidParams(KP, KI, KD, Constants::Motor::maxPWM, Constants::Motor::minPWM, ERROR_THRESHOLD);
+    PIDParameters pidParams(KP, KI, KD, Constants::Motor::maxPWM, 0, ERROR_THRESHOLD);
 
     pidParams.target = targetYaw;
     pidParams.current_value = yaw;
     double pidOutput = PID::calculate(pidParams);
     Serial.print(pidOutput);
-    robot.move(0, 0.5, pidOutput);
+    robot.move(0, 0.0, pidOutput);
 }

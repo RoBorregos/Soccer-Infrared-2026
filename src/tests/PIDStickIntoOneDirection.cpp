@@ -7,11 +7,20 @@
 Robot robot;
 Bno bno;
 
-#define KP 0.1
-#define KI 0.01
-#define KD 0.05
+#define KP 165/Constants::Motor::maxPWM
+#define KI 16/Constants::Motor::maxPWM
+#define KD 1/Constants::Motor::maxPWM
 
-#define ERROR_THRESHOLD 5.0
+#define ERROR_THRESHOLD 100
+
+// // Persistent PID parameters so I/D terms accumulate across loop() calls
+// PIDParameters pidParams(KP, KI, KD,
+//                         Constants::Motor::maxPWM,
+//                         0,
+//                         ERROR_THRESHOLD);
+
+// 0.9375/kMaxPWM, 0.01/kMaxPWM, 0.01/kMaxPWM
+PID pid(KP, KI, KD, ERROR_THRESHOLD);
 
 void setup() {
     Serial.begin(9600);
@@ -22,13 +31,14 @@ void setup() {
 
 void loop() {
     double yaw = bno.GetBNOData();
-    Serial.print("Yaw: ");
-    Serial.println(yaw);
+    // Serial.print("Yaw: ");
+    // Serial.print(yaw);
+    // Serial.print(" | Target Yaw: ");
     double targetYaw = 0.0;
-    PIDParameters pidParams(KP, KI, KD, Constants::Motor::maxPWM, Constants::Motor::minPWM, ERROR_THRESHOLD);
-
-    pidParams.target = targetYaw;
-    pidParams.current_value = yaw;
-    double pidOutput = PID::calculate(pidParams);
-    robot.move(0, 0.5, pidOutput);
+    double pidOutput = pid.Calculate(targetYaw, yaw);
+    Serial.print(" Target Yaw:");
+    Serial.print(targetYaw);
+    Serial.print(" Yaw: ");
+    Serial.println(yaw);
+    robot.move(0, 0.35f, pidOutput);
 }

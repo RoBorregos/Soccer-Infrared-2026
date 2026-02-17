@@ -6,7 +6,7 @@ void setup(){
     delay(3000);
     int base_speed = 65;
     robot.move(0, base_speed);
-    delay(2000);
+    // delay(650);
     // robot.move(90, base_speed);
     // delay(650);
     // robot.move(180, base_speed);
