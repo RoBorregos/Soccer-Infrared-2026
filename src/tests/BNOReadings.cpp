@@ -1,9 +1,6 @@
 #include <Arduino.h>
-#include "BNO.h"
 #include "constants.h"
 #include "robot.h"
-
-Bno bno;
 
 void setup() {
     Serial.begin(9600);
