@@ -25,12 +25,14 @@ void moveMotor(Motor &motor, int speed) {
 }
 
 void setup(){
+    
+}
+
+void loop() {
+    delay(2000);
     moveMotor(left, 100);
     delay(1000);
     moveMotor(center, 100);
     delay(1000);
     moveMotor(right, 100);
-}
-
-void loop() {
 }
