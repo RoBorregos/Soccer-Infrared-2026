@@ -5,3 +5,9 @@
 
 extern Motors motors;
 extern Bno bno;
+
+class Robot {
+public:
+    Robot();
+    void begin();
+};

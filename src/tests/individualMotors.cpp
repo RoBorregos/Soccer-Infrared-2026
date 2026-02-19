@@ -1,4 +1,5 @@
 #include "robot.h"
+Robot robot;
 
 auto left = Motor(1,
     Constants::Motor::Left::pwm,
@@ -25,7 +26,7 @@ void moveMotor(Motor &motor, int speed) {
 }
 
 void setup(){
-    
+    robot.begin();
 }
 
 void loop() {
