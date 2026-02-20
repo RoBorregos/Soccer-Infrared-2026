@@ -1,7 +1,7 @@
 #pragma once
 #include <Arduino.h>
-#include "..\Motors\motors.h"
-#include "..\BNO\BNO.h"
+#include "motors.h"
+#include "BNO.h"
 
 extern Motors motors;
 extern Bno bno;

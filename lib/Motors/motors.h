@@ -2,7 +2,7 @@
 #include <Arduino.h>
 #include <ArduinoSTL.h>
 #include "constants.h"
-#include "../Motor/motor.h"
+#include "motor.h"
 
 class Motors {
 public:
