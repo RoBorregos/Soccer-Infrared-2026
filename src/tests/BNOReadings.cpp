@@ -2,16 +2,16 @@
 #include "constants.h"
 #include "robot.h"
 
-Robot robot;
+Robot bnoTest;
 
 void setup() {
     Serial.begin(9600);
-    robot.begin();
+    bnoTest.begin();
     Serial.println("Setup complete");
 }
 
 void loop() {
-    double yaw = bno.GetBNOData();
+    double yaw = bnoTest.bno.GetBNOData();
     Serial.print("Yaw: ");
     Serial.println(yaw);
 }

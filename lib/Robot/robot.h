@@ -2,12 +2,13 @@
 #include <Arduino.h>
 #include "motors.h"
 #include "BNO.h"
-
-extern Motors motors;
-extern Bno bno;
+#include "motor.h"
 
 class Robot {
 public:
-    Robot();
     void begin();
+
+    Motors motors;
+    Bno bno;
+    Motor motor;
 };
