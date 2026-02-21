@@ -19,5 +19,5 @@ void loop() {
       Serial.println(address, HEX);
     }
   }
-  delay(5000);
+  delay(1000);
 }
