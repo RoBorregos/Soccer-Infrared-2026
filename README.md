@@ -10,5 +10,5 @@ Andrés Rodríguez Cantú — *Programador*
 
 ## TO USE
 ```ps1
-pio run -e individualMotors -t upload
+pio run -e ENV -t upload
 ```
