@@ -1,13 +1,14 @@
 #pragma once
 #include <Arduino.h>
-#include "..\Motors\motors.h"
-#include "..\BNO\BNO.h"
-
-extern Motors motors;
-extern Bno bno;
+#include "motors.h"
+#include "BNO.h"
+#include "motor.h"
 
 class Robot {
 public:
-    Robot();
     void begin();
+
+    Motors motors;
+    Bno bno;
+    Motor motor;
 };

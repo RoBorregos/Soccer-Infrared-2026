@@ -1,10 +1,4 @@
-#include "Robot.h"
-
-Motors motors;
-Bno bno;
-
-Robot::Robot() {
-}
+#include "robot.h"
 
 void Robot::begin() {
     motors.begin();
