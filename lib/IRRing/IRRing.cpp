@@ -4,6 +4,8 @@
 
 SingleEMAFilter<double> filterAngle(0.6);
 SingleEMAFilter<double> filterStr(0.6);
+// #define BALLANGLECORRECTION 235.0-45.0
+#define BALLANGLECORRECTION 0.0
 
 IRRing::IRRing():
 angle(0),
@@ -21,6 +23,16 @@ void IRRing::init(unsigned long*current_time)
     Serial1.setTimeout(100);
 }
 
+
+
+/**
+ * [TODO] - Do binary serialization data for extra security and to avoid parsing issues. 
+ *  
+ * For example, we could send a byte for the type (angle or strength) followed by a 4-byte float for the value. 
+ * This would be more compact and less error-prone than sending strings. We would need to update both the sender 
+ * and receiver code to handle this new format.
+ * 
+ * */ 
 void IRRing::UpdateData() {
     if (Serial1.available()) {
         String data = Serial1.readStringUntil('\n');
@@ -66,40 +78,35 @@ double IRRing::GetStrength(){
 // and smaller angles (ball in front) use ballFollowOffsetFront.
 // This allows more precise control depending on the ball’s position.
 
-double IRRing::GetAngle(float ballFollowOffsetBack, float ballFollowOffsetSide, float ballFollowOffsetFront){
-    
-    if(angle > 180){
-        angle -= 360;
-    }
-    
-    if (abs(angle) > 52){
-        angle = angle * ballFollowOffsetBack;
-    }
-    else if (abs(angle) < 52 && abs(angle) > 25){
-        angle = angle * ballFollowOffsetSide;
-    }
-    else if (abs(angle) < 25){
-        angle = angle * ballFollowOffsetFront;
-    }
-    else {
-        angle = angle;
+double IRRing::GetAngle(float ballFollowOffsetBack, float ballFollowOffsetSide, float ballFollowOffsetFront) {
+    double currentAngle = angle;
+    currentAngle = fmod(currentAngle + 180.0, 360.0);
+    if (currentAngle < 0) currentAngle += 360.0;
+    currentAngle -= 180.0;
+
+    float magnitude = abs(currentAngle);
+    if (magnitude > 52) {
+        currentAngle *= ballFollowOffsetBack;
+    } else if (magnitude > 25) {
+        currentAngle *= ballFollowOffsetSide;
+    } else {
+        currentAngle *= ballFollowOffsetFront;
     }
 
-    if (angle > 180){
-        angle = 180;
-    }
-    else if (angle < -180){
-        angle = -180;
+    // Noise reduction
+    if (magnitude > 0.05) {
+        lastBallAngle = currentAngle;
+    } else {
+        currentAngle = lastBallAngle;
     }
 
-    // Filtrar Valores
-    if (angle > 0.05 || angle <= -0.05){
-        lastBallAngle = angle; // 
-    } else if (angle <= 0.05 || angle >= -0.05) {
-        angle = lastBallAngle; // 
-    }  
-    return angle * -1;
+    double finalResult = (currentAngle * -1) + BALLANGLECORRECTION;
+
+    // WRAPPER
+    finalResult = fmod(finalResult + 180.0, 360.0);
+    if (finalResult < 0) finalResult += 360.0;
     
+    return finalResult - 180.0;
 }
 //Para implementar el offset usando el PID, no sería necesario tener condicionales porque el PID se encarga de corregir el offset según el ángulo
 // double IRRing::GetAngle(){

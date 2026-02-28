@@ -21,6 +21,5 @@ class IRRing
 	double GetRawAngle();
 	double GetStrength();
 	double GetAngle(float ballFollowOffsetBack, float ballFollowOffsetSide, float ballFollowOffsetFront);
-
 };
 #endif

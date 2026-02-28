@@ -40,5 +40,11 @@ void loop() {
     Serial.print(targetYaw);
     Serial.print(" Yaw: ");
     Serial.println(yaw);
-    robot.move(0, 0.35f, pidOutput);
+
+    // Motor::setSpeed floors to an integer PWM value.
+    // Passing 0.35f directly becomes 0 PWM, so scale to PWM units.
+    const float drivePwm = 0.35f * Constants::Motor::maxPWM;
+    robot.move(0, drivePwm, pidOutput);
+
+
 }
