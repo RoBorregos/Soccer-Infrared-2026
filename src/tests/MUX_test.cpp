@@ -44,6 +44,7 @@ void setup() {
 }
 
 void loop() {
+    // Right
 for (uint8_t i = 0; i < kPhotoLeftElements; i++) {
         int valor = chtm(kSignalPin1, kMUXPin1_1, kMUXPin2_1, kMUXPin3_1, i);
         Serial.print(">M1_C"); Serial.print(i); Serial.print(":"); Serial.println(valor);

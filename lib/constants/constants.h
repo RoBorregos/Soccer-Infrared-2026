@@ -52,7 +52,7 @@ namespace Constants {
     const uint8_t kPhotoFrontElements = 8;
 
     // Photo Treshold (lack of calibration, these values are just a reference and should be calibrated for better performance)
-    const int kPhotoTresholdLeft = 260;
+    const int kPhotoTresholdLeft = 300;
     const int kPhotoTresholdRight = 290;
     const int kPhotoTresholdFront = 315; 
 

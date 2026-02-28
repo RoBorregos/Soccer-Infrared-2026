@@ -43,7 +43,7 @@ void loop() {
 
     // Motor::setSpeed floors to an integer PWM value.
     // Passing 0.35f directly becomes 0 PWM, so scale to PWM units.
-    const float drivePwm = 0.35f * Constants::Motor::maxPWM;
+    const float drivePwm = 0.25f * Constants::Motor::maxPWM;
     robot.move(0, drivePwm, pidOutput);
 
 
