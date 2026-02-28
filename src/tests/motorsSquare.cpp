@@ -3,6 +3,7 @@ Robot robot;
 
 void setup(){
     // MOVE AS A SQUARE
+    robot.begin();
     delay(3000);
     int base_speed = 65;
     robot.move(0, base_speed);
