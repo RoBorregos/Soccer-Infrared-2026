@@ -7,9 +7,9 @@
 Robot robot;
 Bno bno;
 
-#define KP 140/Constants::Motor::maxPWM
-#define KI 42/Constants::Motor::maxPWM
-#define KD 18/Constants::Motor::maxPWM
+#define KP 80/Constants::Motor::maxPWM
+#define KI 0/Constants::Motor::maxPWM
+#define KD 0/Constants::Motor::maxPWM
 
 #define ERROR_THRESHOLD 100
 
@@ -31,9 +31,9 @@ void setup() {
 
 void loop() {
     double yaw = bno.GetBNOData();
-    // Serial.print("Yaw: ");
-    // Serial.print(yaw);
-    // Serial.print(" | Target Yaw: ");
+    Serial.print("Yaw: ");
+    Serial.print(yaw);
+    Serial.print(" | Target Yaw: ");
     double targetYaw = 0.0;
     double pidOutput = pid.Calculate(targetYaw, yaw);
     Serial.print(" Target Yaw:");

@@ -43,8 +43,8 @@ void setup() {
 void loop() {
     irring.UpdateData();
     double yaw = bno.GetBNOData();
-    // Serial.print("Yaw: ");
-    // Serial.print(yaw);
+    Serial.print("Yaw: ");
+    Serial.print(yaw);
     targetYaw = INITIALANGLECORRECTION + irring.GetAngle(1.0, 1.0, 1.0);
     // double pidOutput = pid.Calculate(targetYaw, yaw);
     Serial.print(" Target Yaw:");
