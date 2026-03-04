@@ -15,6 +15,7 @@ last_time(0)
 {
 
 }
+
 void IRRing::init(unsigned long*current_time)
 {
     this->current_time=current_time;
@@ -22,16 +23,6 @@ void IRRing::init(unsigned long*current_time)
     Serial1.setTimeout(100);
 }
 
-
-
-/**
- * [TODO] - Do binary serialization data for extra security and to avoid parsing issues. 
- *  
- * For example, we could send a byte for the type (angle or strength) followed by a 4-byte float for the value. 
- * This would be more compact and less error-prone than sending strings. We would need to update both the sender 
- * and receiver code to handle this new format.
- * 
- * */ 
 void IRRing::UpdateData() {
     if (Serial1.available()) {
         String data = Serial1.readStringUntil('\n');
