@@ -17,22 +17,10 @@ float kBallFollowOffsetBack = 1.2;
 float kBallFollowOffsetSide = 1.0;
 float kBallFollowOffsetFront = 1.0;
 
-// #define KP 120/Constants::Motor::maxPWM
-// #define KI 24/Constants::Motor::maxPWM
-// #define KD 24/Constants::Motor::maxPWM
-
 #define ERROR_THRESHOLD 100
 
-// // Persistent PID parameters so I/D terms accumulate across loop() calls
-// PIDParameters pidParams(KP, KI, KD,
-//                         Constants::Motor::maxPWM,
-//                         0,
-//                         ERROR_THRESHOLD);
-
-// 0.9375/kMaxPWM, 0.01/kMaxPWM, 0.01/kMaxPWM
 PID pid(KP, KI, KD, ERROR_THRESHOLD);
 
-// #define BNOINITIALCORRECTION 136.56
 double targetYaw = 0.0;
 double BNOCORRECTION = 0.0;
 
@@ -63,11 +51,11 @@ void setup() {
 
 void loop() {
     irring.UpdateData();
-    // double yaw = bno.GetBNOData() + BNOINITIALCORRECTION;
     double yaw = WrapAngle180(bno.GetBNOData() + BNOCORRECTION);
-    double ballAngle = irring.GetAngle(kBallFollowOffsetBack, kBallFollowOffsetSide, kBallFollowOffsetFront);
+    // TEMP SIGN CORRECTION
+    double ballAngle = -irring.GetAngle(kBallFollowOffsetBack, kBallFollowOffsetSide, kBallFollowOffsetFront);
     double speed = pid.Calculate(targetYaw, yaw);
-    double ballAngleRelativeToRobot = ballAngle - yaw;
+    double ballAngleRelativeToRobot = ballAngle + yaw;
     Serial.print(" BOut: ");
     Serial.print(ballAngle);
     Serial.print(" DAB: ");
@@ -78,5 +66,5 @@ void loop() {
     // NOTE: Motor::setSpeed floors to an integer PWM value.
     // If we pass 0.35f directly, PWM becomes 0 and the robot won't translate.
     const float drivePwm = 0.35f * Constants::Motor::maxPWM;
-    robot.move(-ballAngle, drivePwm, speed);
+    robot.motors.move(ballAngle, drivePwm, speed);
 }
