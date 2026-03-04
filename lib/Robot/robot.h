@@ -3,6 +3,7 @@
 #include "motors.h"
 #include "BNO.h"
 #include "motor.h"
+#include "IRRing.h"
 
 class Robot {
 public:
@@ -10,5 +11,8 @@ public:
 
     Motors motors;
     Bno bno;
-    Motor motor;
+    IRRing irring;
+
+private:
+    unsigned long currentTime;
 };
