@@ -35,12 +35,7 @@ void setup() {
     robot.begin();
     bno.begin();
     delay(1000);
-
-    // Capture initial yaw as an offset so "current" yaw starts near 0.
     double initialYaw = bno.GetBNOData();
-    BNOCORRECTION = -initialYaw;
-
-    // robot.begin();
     unsigned long currentTime = millis();
     irring.init(&currentTime);
     irring.SetOffset(0.0);
