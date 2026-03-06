@@ -4,6 +4,10 @@
 
 IRRing irring;
 
+float kBallFollowOffsetBack = 1.0;
+float kBallFollowOffsetSide = 1.0;
+float kBallFollowOffsetFront = 1.0;
+
 void setup() {
     Serial.begin(115200);
     unsigned long currentTime = millis();
@@ -14,7 +18,7 @@ void setup() {
 
 void loop(){
     irring.UpdateData();
-    double ballAngle = irring.GetAngle(1.0, 1.0, 1.0);
+    double ballAngle = irring.GetAngle(kBallFollowOffsetBack, kBallFollowOffsetSide, kBallFollowOffsetFront);
     Serial.print("Ball angle: ");
     Serial.println(ballAngle);
 }
