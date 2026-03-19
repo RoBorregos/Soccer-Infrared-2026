@@ -1,25 +1,28 @@
 #pragma once
 #include <Arduino.h>
+#include <vector>
 #include "binarySerializationData.h"
 #include "serializer.h"
-
 
 class GoodSerializer
 {
 public:
     void begin(uint32_t serialBaud = 115200, uint32_t uartBaud = 57600);
-    void processLoop();
 
+    // Main loops and endpoints
+    void processLoop();
+    void testEndpoint();
+
+    // Helpers
     static uint16_t readBE16(uint8_t hi, uint8_t lo);
-    bool testSerializedData(const std::vector<uint8_t>& packet);
     bool resyncStream(std::vector<uint8_t>& buffer);
-    bool sumTestSerializedData(const std::vector<uint8_t>& packet, uint16_t expectedMag, uint16_t expectedAng);
+    bool sumTestSerializedData(const std::vector<uint8_t>& packet);
 
     std::vector<uint8_t> receiveBuffer;
 
     struct StreamValidationState {
+        bool isVerified = false;
         bool hasPrev = false;
-        bool passPrinted = false;
         uint16_t prevMag = 0;
         uint16_t prevAng = 0;
         uint32_t checkedTransitions = 0;
