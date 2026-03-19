@@ -22,6 +22,7 @@ void moveMotor(Motor &motor, int speed) {
     motor.setSpeed(speed);
     delay(1000);
     motor.stop();
+    Serial.print("Motor moved");
 }
 
 void setup(){

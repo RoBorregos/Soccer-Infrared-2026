@@ -13,14 +13,10 @@ Bno bno;
 
 #define ERROR_THRESHOLD 100
 
-// // Persistent PID parameters so I/D terms accumulate across loop() calls
-// PIDParameters pidParams(KP, KI, KD,
-//                         Constants::Motor::maxPWM,
-//                         0,
-//                         ERROR_THRESHOLD);
-
-// 0.9375/kMaxPWM, 0.01/kMaxPWM, 0.01/kMaxPWM
 PID pid(KP, KI, KD, ERROR_THRESHOLD);
+
+double targetYaw = 0.0;
+
 
 void setup() {
     Serial.begin(9600);
@@ -34,17 +30,12 @@ void loop() {
     Serial.print("Yaw: ");
     Serial.print(yaw);
     Serial.print(" | Target Yaw: ");
-    double targetYaw = 0.0;
     double pidOutput = pid.Calculate(targetYaw, yaw);
     Serial.print(" Target Yaw:");
     Serial.print(targetYaw);
     Serial.print(" Yaw: ");
     Serial.println(yaw);
-
-    // Motor::setSpeed floors to an integer PWM value.
-    // Passing 0.35f directly becomes 0 PWM, so scale to PWM units.
     const float drivePwm = 0.25f * Constants::Motor::maxPWM;
-    robot.move(0, drivePwm, pidOutput);
-
+    robot.motors.move(0, drivePwm, pidOutput);
 
 }
