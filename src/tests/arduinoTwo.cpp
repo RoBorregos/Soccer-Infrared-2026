@@ -1,4 +1,3 @@
-
 #include <Arduino.h>
 #include "goodSerializer.h"
 
@@ -11,7 +10,8 @@ void setup(){
 
 void loop(){
     serializerTest.processLoop();
-    // Blink the built-in LED to show the loop is running
+    
+    // Blink the built-in LED to show the loop is running and non-blocking
     static uint32_t lastBlink = 0;
     if (millis() - lastBlink >= 1000) {
         digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
