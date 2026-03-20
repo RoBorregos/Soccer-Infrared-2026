@@ -1,4 +1,4 @@
-#include "goodSerializer.h"
+#include "BinaryStreamProcessor.h"
 #define MAX_ATTEMPTS 5
 #define RX 0
 #define TX 1
@@ -8,7 +8,7 @@
 SoftwareSerial UART_PORT(RX, TX); // For main Arduino.
 #endif
 
-void GoodSerializer::begin(uint32_t serialBaud, uint32_t uartBaud) {
+void BinaryStreamProcessor::begin(uint32_t serialBaud, uint32_t uartBaud) {
     Serial.begin(serialBaud);
     UART_PORT.begin(uartBaud);
     Serial.println("Main arduino is ready and listening...");
@@ -16,7 +16,7 @@ void GoodSerializer::begin(uint32_t serialBaud, uint32_t uartBaud) {
 }
 
 // Dedicated endpoint for the initial verification phase
-void GoodSerializer::testEndpoint() {
+void BinaryStreamProcessor::testEndpoint() {
     while (UART_PORT.available() > 0) {
         receiveBuffer.push_back(static_cast<uint8_t>(UART_PORT.read()));
     }
@@ -41,7 +41,7 @@ void GoodSerializer::testEndpoint() {
     }
 }
 
-void GoodSerializer::processLoop() {
+void BinaryStreamProcessor::processLoop() {
     // Phase 1: Run the initial test until verified
     if (!streamState.isVerified) {
         testEndpoint();
@@ -73,12 +73,12 @@ void GoodSerializer::processLoop() {
     Serial.println(deserialized[0].ballAngle);
 }
 
-uint16_t GoodSerializer::readBE16(uint8_t hi, uint8_t lo) {
+uint16_t BinaryStreamProcessor::readBE16(uint8_t hi, uint8_t lo) {
     return static_cast<uint16_t>((static_cast<uint16_t>(hi) << 8) | static_cast<uint16_t>(lo));
 }
 
 // Refactored to act as the primary sequence checker
-bool GoodSerializer::sumTestSerializedData(const std::vector<uint8_t>& packet) {
+bool BinaryStreamProcessor::sumTestSerializedData(const std::vector<uint8_t>& packet) {
     if (packet.size() < Serializer::RECORD_SIZE) return false;
     
     uint16_t mag = readBE16(packet[0], packet[1]);
@@ -111,7 +111,7 @@ bool GoodSerializer::sumTestSerializedData(const std::vector<uint8_t>& packet) {
     return false;
 }
 
-bool GoodSerializer::resyncStream(std::vector<uint8_t>& buffer) {
+bool BinaryStreamProcessor::resyncStream(std::vector<uint8_t>& buffer) {
     Serial.println("Framing error detected. Sliding window to resync...");
     for (size_t i = 0; i < Serializer::RECORD_SIZE; ++i) {
         buffer.erase(buffer.begin());
