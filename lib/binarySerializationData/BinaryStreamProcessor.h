@@ -4,7 +4,7 @@
 #include "binarySerializationData.h"
 #include "serializer.h"
 
-class GoodSerializer
+class BinaryStreamProcessor
 {
 public:
     void begin(uint32_t serialBaud = 115200, uint32_t uartBaud = 57600);
