@@ -7,6 +7,7 @@
 
 class Robot {
 public:
+    Robot();
     void begin();
 
     Motors motors;

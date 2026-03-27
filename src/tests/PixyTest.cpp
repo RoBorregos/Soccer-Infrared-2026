@@ -1,76 +1,48 @@
 #include <Arduino.h>
-#include "PixyCam.h"
+#include <Pixy2.h>
 
+Pixy2 pixy;
 
-PixyCam pixyCamRobot;
-const uint32_t kCommunicationMode = SPI_MODE0; // UART communication mode
+#define SIG_ORANGE_BALL  1
 
-void setup()
-{
-    Serial.begin(9600);
-    pixyCamRobot.Init(kCommunicationMode);
-}
-void loop(){
-    pixyCamRobot.updateData();
-    Serial.println("Get blocks:");
-    Serial.println(pixyCamRobot.numBlocks());
-    Serial.println("X:");
-    Serial.println(pixyCamRobot.getX(1));
-    Serial.println("Y:");
-    Serial.println(pixyCamRobot.getY(1));
-    Serial.println("Height:");
-    Serial.println(pixyCamRobot.getHeight(1));
-    Serial.println("Signature:");
-    Serial.println(pixyCamRobot.getSignature());
-    Serial.println("Width:");
-    Serial.println(pixyCamRobot.getWidth(1));
-}
-/*#include <Arduino.h>
-#include "PixyCam.h"
-#include <Pixy2UART.h>
-PixyCam pixyCamRobot;
 void setup() {
-    Serial.begin(9600);
-    Serial3.begin(19200);
-    pixyCamRobot.Init();
+  Serial.begin(115200);
+  delay(1000);
+  Serial.println("Pixy2 - Ball Detection Test");
+  Serial.println("====================================");
+
+  int result = pixy.init();
+
+  if (result == 0) {
+    Serial.println("[SUCCESS] Pixy2 connected!");
+  } else {
+    Serial.println("[FAIL] Pixy2 not found. Check wiring, pixyMon interface configs, energy supply or whatever idk lol");
+    while (true); 
+  }
 }
+
 void loop() {
-    pixyCamRobot.updateData();  // Actualiza la información de los bloques detectados
-    int blocks = pixyCamRobot.numBlocks();  // Obtiene el número de bloques detectados
-    Serial.println("Get blocks:");
-    Serial.println(blocks);
-    // Si hay bloques detectados
-    if (blocks > 0) {
-        // Recorre todos los bloques detectados
-        for (int i = 0; i < blocks; i++) {
-            int signature = pixyCamRobot.getSignature();  // Obtiene la firma de cada bloque
-            // Verifica si la firma es la 1 (amarilla) o la 2 (azul)
-            if (signature == 1) {
-                Serial.println("Yellow Goal (Signature 1):");
-                Serial.print("X: ");
-                Serial.println(pixyCamRobot.getX(i));
-                Serial.print("Y: ");
-                Serial.println(pixyCamRobot.getY(i));
-                Serial.print("Height: ");
-                Serial.println(pixyCamRobot.getHeight(i));
-                Serial.print("Width: ");
-                Serial.println(pixyCamRobot.getWidth(i));
-            }
-            else if (signature == 2) {
-                Serial.println("Blue Goal (Signature 2):");
-                Serial.print("X: ");
-                Serial.println(pixyCamRobot.getX(i));
-                Serial.print("Y: ");
-                Serial.println(pixyCamRobot.getY(i));
-                Serial.print("Height: ");
-                Serial.println(pixyCamRobot.getHeight(i));
-                Serial.print("Width: ");
-                Serial.println(pixyCamRobot.getWidth(i));
-            }
-        }
+  pixy.ccc.getBlocks();
+
+  bool found = false;
+
+  for (int i = 0; i < pixy.ccc.numBlocks; i++) {
+    if (pixy.ccc.blocks[i].m_signature == SIG_ORANGE_BALL) {
+      found = true;
+      Serial.print("BALL| x= ");
+      Serial.print(pixy.ccc.blocks[i].m_x);
+      Serial.print("  y= ");
+      Serial.print(pixy.ccc.blocks[i].m_y);
+      Serial.print("  size= ");
+      Serial.print(pixy.ccc.blocks[i].m_width);
+      Serial.print("x");
+      Serial.println(pixy.ccc.blocks[i].m_height);
     }
-    else {
-        Serial.println("No blocks detected.");
-    }
-    delay(500);  // Pausa antes de la siguiente lectura
-}*/
+  }
+
+  if (!found) {
+    Serial.println("No subject detected");
+  }
+
+  delay(200);
+}

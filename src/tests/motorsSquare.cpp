@@ -7,7 +7,7 @@ void setup(){
 
 void loop() {
     // MOVE AS A SQUARE
-    int base_speed = 65;
+    int base_speed = 100;
     squareTest.motors.move(0, base_speed);
     delay(650);
     squareTest.motors.move(90, base_speed);

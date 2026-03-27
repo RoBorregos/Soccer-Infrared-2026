@@ -29,16 +29,16 @@ public:
   int8_t open(uint32_t arg)
   {
 	if (arg==PIXY_DEFAULT_ARGVAL)
-      Serial3.begin(PIXY_UART_BAUDRATE);
+      Serial1.begin(PIXY_UART_BAUDRATE);
     else
-      Serial3.begin(arg);      
+      Serial1.begin(arg);      
     return 0;
   }
-
+	
   void close()
   {
   }
-
+    
   int16_t recv(uint8_t *buf, uint8_t len, uint16_t *cs=NULL)
   {
     uint8_t i, j;
@@ -65,13 +65,13 @@ public:
     }
     return len;
   }
-
+    
   int16_t send(uint8_t *buf, uint8_t len)
   {
     Serial1.write(buf, len);
     return len;
   }
-
+  	
 private:
   uint8_t m_addr;	
 };
