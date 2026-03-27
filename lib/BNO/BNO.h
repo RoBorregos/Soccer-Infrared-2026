@@ -1,0 +1,17 @@
+#pragma once
+
+#include <Arduino.h>
+#include <Wire.h>
+#include <Adafruit_Sensor.h>
+#include <Adafruit_BNO055.h>
+
+class Bno {
+public:
+    Bno();
+    void begin();
+    double GetBNOData();
+  
+private:
+    Adafruit_BNO055 bno = Adafruit_BNO055(55, 0x28, &Wire);
+    double yaw;
+};
