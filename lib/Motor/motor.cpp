@@ -1,5 +1,23 @@
 #include "motor.h"
 
+namespace
+{
+float GetMotorSpeedOffset(int motorId)
+{
+    switch (motorId)
+    {
+    case 1:
+        return Constants::Motor::Left::speedOffset;
+    case 2:
+        return Constants::Motor::Center::speedOffset;
+    case 3:
+        return Constants::Motor::Right::speedOffset;
+    default:
+        return 0.0f;
+    }
+}
+}
+
 Motor::Motor(int id, int pwmPin, int in1Pin, int in2Pin) {
     this->id = id;
     this->pwmPin = pwmPin;
@@ -15,6 +33,12 @@ void Motor::begin() {
 }
 
 void Motor::setSpeed(float speed) {
+    if (speed > 0.0f) {
+        speed += GetMotorSpeedOffset(id);
+    } else if (speed < 0.0f) {
+        speed -= GetMotorSpeedOffset(id);
+    }
+
     speed = constrain(speed, -255.0f, 255.0f);
 
     // Don't touch direction pins if speed is zero

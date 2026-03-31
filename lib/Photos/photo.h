@@ -21,6 +21,19 @@ struct PhotoData
 class Phototransistor
 {
 private:
+    struct SideData
+    {
+        Multiplexer *mux;
+        uint16_t *readings;
+        uint16_t *baseline;
+        uint16_t *margins;
+        const uint16_t *fixed_thresholds;
+        uint8_t elements;
+        uint8_t *confirmation_counter;
+        bool *baseline_captured;
+        int correction_degree;
+    };
+
     Multiplexer left_mux_;
     Multiplexer right_mux_;
     Multiplexer front_mux_;
@@ -28,25 +41,25 @@ private:
     uint16_t photo_left_[Constants::kPhotoLeftElements];
     uint16_t photo_right_[Constants::kPhotoRightElements];
     uint16_t photo_front_[Constants::kPhotoFrontElements];
+    uint16_t left_baseline_[Constants::kPhotoLeftElements] = {0};
+    uint16_t right_baseline_[Constants::kPhotoRightElements] = {0};
+    uint16_t front_baseline_[Constants::kPhotoFrontElements] = {0};
+    uint16_t left_margins_[Constants::kPhotoLeftElements] = {0};
+    uint16_t right_margins_[Constants::kPhotoRightElements] = {0};
+    uint16_t front_margins_[Constants::kPhotoFrontElements] = {0};
+    bool left_baseline_captured_ = false;
+    bool right_baseline_captured_ = false;
+    bool front_baseline_captured_ = false;
 
-    static const int kMovingAverageSize = 10;
+    uint8_t left_line_confirmations_ = 0;
+    uint8_t right_line_confirmations_ = 0;
+    uint8_t front_line_confirmations_ = 0;
 
-    uint16_t left_values_[kMovingAverageSize] = {0};
-    uint16_t right_values_[kMovingAverageSize] = {0};
-    uint16_t front_values_[kMovingAverageSize] = {0};
+    uint8_t required_line_confirmations_ = 2;
+    uint16_t threshold_padding_ = 5;
 
-    int left_index_ = 0;
-    int right_index_ = 0;
-    int front_index_ = 0;
-
-    uint16_t CalculateMovingAverage(uint16_t *array, int &index, uint16_t new_value);
-
-    int32_t Kweighted_sum = 0;
-    int32_t Ktotal_sensor_value = 0;
-
-    static constexpr int kSensorWeights[8] = {-40, -30, -20, -10, 10, 20, 30, 40};
-
-    int32_t current_sum = 0;
+    SideData GetSideData(Side side);
+    uint16_t GetActiveThreshold(const SideData &side_data, uint8_t channel) const;
 
 public:
     Phototransistor(uint8_t sig_left, uint8_t s0_l, uint8_t s1_l, uint8_t s2_l,
@@ -54,12 +67,19 @@ public:
                     uint8_t sig_front, uint8_t s0_f, uint8_t s1_f, uint8_t s2_f);
 
     uint16_t GetRawReading(Side side, uint8_t channel);
+    uint16_t GetThreshold(Side side, uint8_t channel) const;
+    uint16_t GetBaselineReading(Side side, uint8_t channel) const;
 
     void Initialize();
     void ReadAllSensors(Side side);
+    void CaptureSideBaseline(Side side, uint8_t samples, uint16_t delay_ms);
+    void CaptureBaseline(uint8_t samples, uint16_t delay_ms);
+    void SetMargins(Side side, const uint16_t *margins, uint8_t num_elements);
+    void SetRequiredConfirmations(uint8_t confirmations);
+    void SetThresholdPadding(uint16_t padding);
     PhotoData CheckPhotosOnField(Side side);
 
-    void Phototransistor::ReadMuxSide(Multiplexer &mux, uint16_t *target_array, int num_elements);
+    void ReadMuxSide(Multiplexer &mux, uint16_t *target_array, int num_elements);
 };
 
 #endif // PHOTO_H

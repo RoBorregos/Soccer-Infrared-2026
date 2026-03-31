@@ -13,6 +13,7 @@ namespace Constants
             const uint8_t in1 = 26;
             const uint8_t in2 = 27;
             const uint8_t pwm = 4;
+            constexpr float speedOffset = 5.0f;
         }
 
         namespace Center
@@ -20,13 +21,15 @@ namespace Constants
             const uint8_t in1 = 24;
             const uint8_t in2 = 25;
             const uint8_t pwm = 5;
+            constexpr float speedOffset = 0.0f;
         }
 
         namespace Right
         {
             const uint8_t in1 = 22;
             const uint8_t in2 = 23;
-            const uint8_t pwm = 6;
+            const uint8_t pwm = 7;
+            constexpr float speedOffset = 0.0f;
         }
 
         const double minPWM = 40.0;  // We set the minimum PWM that the robot needs to move
@@ -55,10 +58,21 @@ namespace Constants
     const uint8_t kPhotoRightElements = 8;
     const uint8_t kPhotoFrontElements = 6;
 
-    // Photo Treshold (lack of calibration, these values are just a reference and should be calibrated for better performance)
+    // Side-wide thresholds kept for compatibility with older tests/debug prints.
     const int kPhotoTresholdLeft = 380;
     const int kPhotoTresholdRight = 300;
     const int kPhotoTresholdFront = 200;
+
+    // Per-channel thresholds for each sensor independently.
+    constexpr uint16_t kPhotoLeftThresholds[kPhotoLeftElements] = {
+        190, 140, 175, 145, 175, 280, 180, 180
+    };
+    constexpr uint16_t kPhotoRightThresholds[kPhotoRightElements] = {
+        250, 400, 250, 260, 300, 300, 225, 300
+    };
+    constexpr uint16_t kPhotoFrontThresholds[kPhotoFrontElements] = {
+        200, 200, 200, 200, 200, 200
+    };
 
     // -----------Ultrasonic sensor--------------
     const uint8_t kTrigPin = 33;

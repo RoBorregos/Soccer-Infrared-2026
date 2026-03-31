@@ -10,8 +10,10 @@ Phototransistor phototransistor_sensors(
     Constants::kSignalPin3, Constants::kMUXPin1_3, Constants::kMUXPin2_3, Constants::kMUXPin3_3
 );
 
-const float drivePwm = 0.45f * Constants::Motor::maxPWM;
+const float kDrivePwm = 0.45f * Constants::Motor::maxPWM;
+const float kDriveAngle = 0.0f;
 const unsigned long kAvoidDurationMs = 350;
+const unsigned long kDebugIntervalMs = 200;
 const uint8_t kBaselineSamples = 20;
 const uint16_t kBaselineDelayMs = 10;
 
@@ -25,11 +27,52 @@ const uint16_t kFrontMargins[Constants::kPhotoFrontElements] = {
     40, 40, 40, 40, 40, 40
 };
 
-enum class RobotState { IDLE, AVOIDING_LINE };
-RobotState current_state = RobotState::IDLE;
-
+unsigned long last_debug_time = 0;
 unsigned long avoid_start_time = 0;
 int escapeAngle = 0;
+
+enum class RobotState { DRIVING_STRAIGHT, AVOIDING_LINE };
+RobotState current_state = RobotState::DRIVING_STRAIGHT;
+
+void printSideData(const char *label, Side side, uint8_t num_elements)
+{
+    Serial.print(label);
+    Serial.print(F(": "));
+    for (uint8_t channel = 0; channel < num_elements; channel++)
+    {
+        Serial.print(phototransistor_sensors.GetRawReading(side, channel));
+        if (channel < num_elements - 1)
+        {
+            Serial.print(F("|"));
+        }
+    }
+
+    Serial.print(F("  thr "));
+    Serial.print(label);
+    Serial.print(F(": "));
+    for (uint8_t channel = 0; channel < num_elements; channel++)
+    {
+        Serial.print(phototransistor_sensors.GetThreshold(side, channel));
+        if (channel < num_elements - 1)
+        {
+            Serial.print(F("|"));
+        }
+    }
+}
+
+void printRawReadings()
+{
+    phototransistor_sensors.ReadAllSensors(Side::Left);
+    phototransistor_sensors.ReadAllSensors(Side::Right);
+    phototransistor_sensors.ReadAllSensors(Side::Front);
+
+    printSideData("L", Side::Left, Constants::kPhotoLeftElements);
+    Serial.print(F("  "));
+    printSideData("R", Side::Right, Constants::kPhotoRightElements);
+    Serial.print(F("  "));
+    printSideData("F", Side::Front, Constants::kPhotoFrontElements);
+    Serial.println();
+}
 
 void setup()
 {
@@ -37,6 +80,7 @@ void setup()
     robot.stop();
     delay(2000);
 
+    Serial.begin(115200);
     phototransistor_sensors.Initialize();
     phototransistor_sensors.SetMargins(Side::Left, kLeftMargins, Constants::kPhotoLeftElements);
     phototransistor_sensors.SetMargins(Side::Right, kRightMargins, Constants::kPhotoRightElements);
@@ -52,14 +96,19 @@ void loop()
     {
         if (millis() - avoid_start_time >= kAvoidDurationMs)
         {
-            robot.stop();
-            current_state = RobotState::IDLE;
+            current_state = RobotState::DRIVING_STRAIGHT;
         }
         else
         {
-            robot.move(escapeAngle, drivePwm);
+            robot.move(escapeAngle, kDrivePwm);
         }
         return;
+    }
+
+    if (millis() - last_debug_time >= kDebugIntervalMs)
+    {
+        printRawReadings();
+        last_debug_time = millis();
     }
 
     PhotoData left = phototransistor_sensors.CheckPhotosOnField(Side::Left);
@@ -83,6 +132,13 @@ void loop()
 
         avoid_start_time = millis();
         current_state = RobotState::AVOIDING_LINE;
-        robot.move(escapeAngle, drivePwm);
+
+        Serial.print(F("Line detected, escaping at "));
+        Serial.println(escapeAngle);
+
+        robot.move(escapeAngle, kDrivePwm);
+        return;
     }
+
+    robot.move(kDriveAngle, kDrivePwm);
 }
