@@ -1,113 +1,214 @@
 #include "photo.h"
 
-Photo::Photo(uint8_t sig_left, uint8_t s0_l, uint8_t s1_l, uint8_t s2_l,
-             uint8_t sig_right, uint8_t s0_r, uint8_t s1_r, uint8_t s2_r,
-             uint8_t sig_front, uint8_t s0_f, uint8_t s1_f, uint8_t s2_f)
-    : left_mux_(sig_left, s0_l, s1_l, s2_l),
-      right_mux_(sig_right, s0_r, s1_r, s2_r),
-      front_mux_(sig_front, s0_f, s1_f, s2_f) {}
+Phototransistor::Phototransistor(uint8_t signal_left, uint8_t s0_l, uint8_t s1_l, uint8_t s2_l,
+             uint8_t signal_right, uint8_t s0_r, uint8_t s1_r, uint8_t s2_r,
+             uint8_t signal_front, uint8_t s0_f, uint8_t s1_f, uint8_t s2_f)
+    : left_mux_(signal_left, s0_l, s1_l, s2_l),
+      right_mux_(signal_right, s0_r, s1_r, s2_r),
+      front_mux_(signal_front, s0_f, s1_f, s2_f) {}
 
-void Photo::Initialize() {
+Phototransistor::SideData Phototransistor::GetSideData(Side side)
+{
+    // Centralize all per-side data so the rest of the file avoids repeated switches.
+    switch (side)
+    {
+    case Side::Left:
+        return {
+            &left_mux_,
+            photo_left_,
+            left_baseline_,
+            left_margins_,
+            Constants::kPhotoLeftThresholds,
+            Constants::kPhotoLeftElements,
+            &left_line_confirmations_,
+            &left_baseline_captured_,
+            -90
+        };
+    case Side::Right:
+        return {
+            &right_mux_,
+            photo_right_,
+            right_baseline_,
+            right_margins_,
+            Constants::kPhotoRightThresholds,
+            Constants::kPhotoRightElements,
+            &right_line_confirmations_,
+            &right_baseline_captured_,
+            90
+        };
+    case Side::Front:
+    default:
+        return {
+            &front_mux_,
+            photo_front_,
+            front_baseline_,
+            front_margins_,
+            Constants::kPhotoFrontThresholds,
+            Constants::kPhotoFrontElements,
+            &front_line_confirmations_,
+            &front_baseline_captured_,
+            180
+        };
+    }
+}
+
+uint16_t Phototransistor::GetActiveThreshold(const SideData &side_data, uint8_t channel) const
+{
+    uint16_t active_threshold = side_data.fixed_thresholds[channel];
+    if (*side_data.baseline_captured)
+    {
+        // Use the safer threshold between the startup green baseline and the fixed tuned value.
+        const uint16_t baseline_threshold = side_data.baseline[channel] + side_data.margins[channel];
+        const uint16_t fixed_threshold = side_data.fixed_thresholds[channel] + threshold_padding_;
+        active_threshold = max(baseline_threshold, fixed_threshold);
+    }
+
+    return active_threshold;
+}
+
+void Phototransistor::Initialize()
+{
     left_mux_.InitializeMultiplexer();
     right_mux_.InitializeMultiplexer();
     front_mux_.InitializeMultiplexer();
 }
 
-void Photo::ReadAllSensors(Side side) {
-    switch (side) {
-        case Side::Left:
-            for (int i = 0; i < Constants::kPhotoLeftElements; i++) {
-                photo_left_[i] = left_mux_.readChannel(i);
-            }
-            break;
-            
-        case Side::Right:
-            for (int i = 0; i < Constants::kPhotoRightElements; i++) {
-                photo_right_[i] = right_mux_.readChannel(i);
-            }
-            break;
-            
-        case Side::Front:
-            for (int i = 0; i < Constants::kPhotoFrontElements; i++) {
-                photo_front_[i] = front_mux_.readChannel(i);
-            }
-            break;
+void Phototransistor::ReadMuxSide(Multiplexer &mux, uint16_t *target_array, int num_elements)
+{
+    for (int i = 0; i < num_elements; i++)
+    {
+        target_array[i] = mux.readChannel(i);
     }
 }
 
-uint16_t Photo::CalculateMovingAverage(uint16_t* array, int& index, uint16_t new_value) {
-    array[index] = new_value;
-    index = (index + 1) % kMovingAverageSize;
-    
-    uint32_t sum = 0;
-    for (int i = 0; i < kMovingAverageSize; i++) {
-        sum += array[i];
-    }
-    return sum / kMovingAverageSize;
+void Phototransistor::ReadAllSensors(Side side)
+{
+    SideData side_data = GetSideData(side);
+    ReadMuxSide(*side_data.mux, side_data.readings, side_data.elements);
 }
 
-PhotoData Photo::CheckPhotosOnField(Side side) {
-    PhotoData data = {false, 0};
-    
+void Phototransistor::CaptureSideBaseline(Side side, uint8_t samples, uint16_t delay_ms)
+{
+    if (samples == 0)
+    {
+        return;
+    }
+
+    SideData side_data = GetSideData(side);
+    uint32_t sums[Constants::kPhotoRightElements] = {0};
+
+    // Average several green-field readings so startup noise does not define the baseline.
+    for (uint8_t sample = 0; sample < samples; sample++)
+    {
+        ReadAllSensors(side);
+        for (uint8_t channel = 0; channel < side_data.elements; channel++)
+        {
+            sums[channel] += side_data.readings[channel];
+        }
+        delay(delay_ms);
+    }
+
+    for (uint8_t channel = 0; channel < side_data.elements; channel++)
+    {
+        side_data.baseline[channel] = sums[channel] / samples;
+    }
+
+    *side_data.baseline_captured = true;
+}
+
+void Phototransistor::CaptureBaseline(uint8_t samples, uint16_t delay_ms)
+{
+    CaptureSideBaseline(Side::Left, samples, delay_ms);
+    CaptureSideBaseline(Side::Right, samples, delay_ms);
+    CaptureSideBaseline(Side::Front, samples, delay_ms);
+}
+
+void Phototransistor::SetMargins(Side side, const uint16_t *margins, uint8_t num_elements)
+{
+    SideData side_data = GetSideData(side);
+    const uint8_t limit = num_elements < side_data.elements ? num_elements : side_data.elements;
+
+    for (uint8_t channel = 0; channel < limit; channel++)
+    {
+        side_data.margins[channel] = margins[channel];
+    }
+}
+
+void Phototransistor::SetRequiredConfirmations(uint8_t confirmations)
+{
+    required_line_confirmations_ = confirmations == 0 ? 1 : confirmations;
+}
+
+void Phototransistor::SetThresholdPadding(uint16_t padding)
+{
+    threshold_padding_ = padding;
+}
+
+PhotoData Phototransistor::CheckPhotosOnField(Side side)
+{
     ReadAllSensors(side);
 
-    int32_t weighted_sum = 0;
-    int32_t total_sensor_value = 0;
-    
-    // Negative means rotate left, positive means rotate right
-    const int weights[8] = {-40, -30, -20, -10, 10, 20, 30, 40};
-    
-    // Pointers and thresholds to handle sides dynamically
-    uint16_t* current_array;
-    int threshold;
-    int elements;
+    SideData side_data = GetSideData(side);
+    bool detected_this_loop = false;
 
-    switch (side) {
-        case Side::Left:
-            current_array = photo_left_;
-            threshold = Constants::kPhotoTresholdLeft;
-            elements = Constants::kPhotoLeftElements;
+    // Any channel crossing its active threshold means that side has seen the line.
+    for (uint8_t channel = 0; channel < side_data.elements; channel++)
+    {
+        if (side_data.readings[channel] > GetActiveThreshold(side_data, channel))
+        {
+            detected_this_loop = true;
             break;
-        case Side::Right:
-            current_array = photo_right_;
-            threshold = Constants::kPhotoTresholdRight;
-            elements = Constants::kPhotoRightElements;
-            break;
-        case Side::Front:
-            current_array = photo_front_;
-            threshold = Constants::kPhotoTresholdFront;
-            elements = Constants::kPhotoFrontElements;
-            break;
-    }
-
-    for (int i = 0; i < elements; i++) {
-        // If ANY sensor is above the threshold, we are on the line
-        if (current_array[i] > threshold) {
-            data.is_on_line = true;
-            
-            // Only use the sensors actually seeing the line for the math
-            int active_value = current_array[i] - threshold; 
-            
-            weighted_sum += (active_value * weights[i]);
-            total_sensor_value += active_value;
         }
     }
 
-    if (data.is_on_line && total_sensor_value > 0) {
-        // This calculates the "Center of Mass" of the line.
-        data.correction_degree = weighted_sum / total_sensor_value; 
-    } else {
-        data.correction_degree = 0; // No line, no correction needed
+    // Confirm detections across loops to reduce noise when required.
+    if (detected_this_loop)
+    {
+        if (*side_data.confirmation_counter < required_line_confirmations_)
+        {
+            (*side_data.confirmation_counter)++;
+        }
+    }
+    else
+    {
+        *side_data.confirmation_counter = 0;
     }
 
-    return data;
+    return {
+        *side_data.confirmation_counter >= required_line_confirmations_,
+        side_data.correction_degree
+    };
 }
 
-uint16_t Photo::GetRawReading(Side side, uint8_t channel) {
-    switch (side) {
-        case Side::Left:  return photo_left_[channel];
-        case Side::Right: return photo_right_[channel];
-        case Side::Front: return photo_front_[channel];
-        default: return 0;
+uint16_t Phototransistor::GetRawReading(Side side, uint8_t channel)
+{
+    SideData side_data = GetSideData(side);
+    if (channel >= side_data.elements)
+    {
+        return 0;
     }
+
+    return side_data.readings[channel];
+}
+
+uint16_t Phototransistor::GetThreshold(Side side, uint8_t channel) const
+{
+    SideData side_data = const_cast<Phototransistor *>(this)->GetSideData(side);
+    if (channel >= side_data.elements)
+    {
+        return 0;
+    }
+
+    return GetActiveThreshold(side_data, channel);
+}
+
+uint16_t Phototransistor::GetBaselineReading(Side side, uint8_t channel) const
+{
+    SideData side_data = const_cast<Phototransistor *>(this)->GetSideData(side);
+    if (channel >= side_data.elements)
+    {
+        return 0;
+    }
+
+    return side_data.baseline[channel];
 }
