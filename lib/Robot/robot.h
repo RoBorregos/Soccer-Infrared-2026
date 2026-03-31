@@ -4,6 +4,7 @@
 #include "BNO.h"
 #include "motor.h"
 #include "IRRing.h"
+#include "IMU.h"
 
 class Robot {
 public:
@@ -11,8 +12,9 @@ public:
     void begin();
 
     Motors motors;
-    Bno bno;
+    // Bno bno;
     IRRing irring;
+    IMUDriver imu;
 
 private:
     unsigned long currentTime;
