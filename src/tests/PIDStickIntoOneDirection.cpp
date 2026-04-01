@@ -1,15 +1,13 @@
 #include <Arduino.h>
-#include "BNO.h"
 #include "constants.h"
 #include "robot.h"
 #include "PID.h"
 
 Robot robot;
-Bno bno;
 
-#define KP 80/Constants::Motor::maxPWM
-#define KI 0/Constants::Motor::maxPWM
-#define KD 0/Constants::Motor::maxPWM
+#define KP 400/Constants::Motor::maxPWM
+#define KI 150/Constants::Motor::maxPWM
+#define KD 50/Constants::Motor::maxPWM
 
 #define ERROR_THRESHOLD 100
 
@@ -17,16 +15,14 @@ PID pid(KP, KI, KD, ERROR_THRESHOLD);
 
 double targetYaw = 0.0;
 
-
 void setup() {
-    Serial.begin(9600);
+    Serial.begin(115200);
     robot.begin();
-    bno.begin();
     delay(2000);
 }
 
 void loop() {
-    double yaw = bno.GetBNOData();
+    double yaw = robot.imu.getAngle();
     Serial.print("Yaw: ");
     Serial.print(yaw);
     Serial.print(" | Target Yaw: ");
@@ -36,6 +32,6 @@ void loop() {
     Serial.print(" Yaw: ");
     Serial.println(yaw);
     const float drivePwm = 0.25f * Constants::Motor::maxPWM;
-    robot.motors.move(0, drivePwm, pidOutput);
+    robot.motors.move(0, 0, pidOutput);
 
 }

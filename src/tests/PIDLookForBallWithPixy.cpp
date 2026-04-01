@@ -87,6 +87,5 @@ void loop() {
     // NOTE: Motor::setSpeed floors to an integer PWM value.
     // If we pass 0.45f directly, PWM becomes 0 and the robot won't translate.
     const float drivePwm = 0.45f * Constants::Motor::maxPWM;
-    robot.motors.
-    (ballAngle, drivePwm, speed);
+    robot.motors.move(ballAngle, drivePwm, speed);
 }
