@@ -2,15 +2,10 @@
 #define IMU_DRIVER_H
 
 #include "FastIMU.h"
+#include "constants.h"
 #include <Wire.h>
 
 #define IMU_ADDRESS 0x68
-
-// Globals declared as extern to avoid multiple-definition errors
-extern MPU6500 IMU;
-extern calData calib;
-extern AccelData accelData;
-extern GyroData gyroData;
 
 class IMUDriver {
 public:
