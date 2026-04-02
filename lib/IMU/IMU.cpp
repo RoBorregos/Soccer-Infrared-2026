@@ -2,7 +2,7 @@
 IMUDriver::IMUDriver(MPU6500* imuPtr, uint8_t address) :
     imu(imuPtr), addr(address), gyro_bias_z(0.0f), yaw(0.0f), previous_time(0) {}
 
-int IMUDriver::begin(calData &cal, int samples = 500) {
+int IMUDriver::begin(calData &cal, int samples = Constants::samplesForGyroCalibration) {
     int err = imu->init(cal, addr);
     if (err != 0) return err;
 

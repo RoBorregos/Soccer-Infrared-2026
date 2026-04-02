@@ -11,7 +11,7 @@ class IMUDriver {
 public:
   IMUDriver(MPU6500* imuPtr, uint8_t address);
   // Initialize IMU and compute gyro Z bias (blocking calibration)
-  int begin(calData &cal, int samples = 500);
+  int begin(calData &cal, int samples = Constants::samplesForGyroCalibration);
   float getAngle();
 private:
   MPU6500* imu;
