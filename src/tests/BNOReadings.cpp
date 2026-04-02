@@ -11,7 +11,7 @@ void setup() {
 }
 
 void loop() {
-    double yaw = bnoTest.bno.GetBNOData();
-    Serial.print("Yaw: ");
-    Serial.println(yaw);
+    // double yaw = bnoTest.bno.GetBNOData();
+    // Serial.print("Yaw: ");
+    // Serial.println(yaw);
 }

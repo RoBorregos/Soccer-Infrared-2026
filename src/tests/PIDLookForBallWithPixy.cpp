@@ -9,6 +9,8 @@ Pixy2 pixy;
 Robot robot;
 Bno bno;
 
+#define BALL_SIG 1
+
 #define KP 160/Constants::Motor::maxPWM
 #define KI 36/Constants::Motor::maxPWM
 #define KD 50/Constants::Motor::maxPWM
@@ -55,7 +57,7 @@ void loop() {
         pixy.ccc.getBlocks();
         bool found = false;
         for (int i = 0; i < pixy.ccc.numBlocks; i++) {
-            if (pixy.ccc.blocks[i].m_signature == 1) {
+            if (pixy.ccc.blocks[i].m_signature == BALL_SIG) {
                 found = true;
                 uint16_t xComponent = pixy.ccc.blocks[i].m_x;
                 uint16_t yComponent = pixy.ccc.blocks[i].m_y;

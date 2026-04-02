@@ -59,19 +59,19 @@ namespace Constants
     const uint8_t kPhotoFrontElements = 6;
 
     // Side-wide thresholds kept for compatibility with older tests/debug prints.
-    const int kPhotoTresholdLeft = 380;
-    const int kPhotoTresholdRight = 300;
-    const int kPhotoTresholdFront = 200;
+    const int kPhotoTresholdLeft  = 184;
+    const int kPhotoTresholdRight = 263;
+    const int kPhotoTresholdFront = 176;
 
     // Per-channel thresholds for each sensor independently.
     constexpr uint16_t kPhotoLeftThresholds[kPhotoLeftElements] = {
-        190, 140, 175, 145, 175, 280, 180, 180
+        18, 24, 24, 3, 15, 14, 31, 8
     };
     constexpr uint16_t kPhotoRightThresholds[kPhotoRightElements] = {
-        250, 400, 250, 260, 300, 300, 225, 300
+        11, 17, 66, 64, 145, 16, 93, 10
     };
     constexpr uint16_t kPhotoFrontThresholds[kPhotoFrontElements] = {
-        200, 200, 200, 200, 200, 200
+        44, 43, 44, 43, 43, 44
     };
 
     // -----------Ultrasonic sensor--------------
@@ -83,4 +83,9 @@ namespace Constants
     const int kLeftGoalKeeperTresholdX = 116;   // Minimum distance to the goal in cm
     const int kRightGoalKeeperTresholdX = 275;  // Maximum distance to the goal in cm
     const uint8_t kGoalKeeperTresholdX = 15;
+
+    // ----------------- IMU -------------------
+    const float kIMUDeadbandThreshold = 0.5f; // degrees per second
+    const double kIMUMaxDt = 0.1; // 100 ms
+    const uint16_t samplesForGyroCalibration = 500; // Number of samples to take for gyro Z bias calibration
 }
