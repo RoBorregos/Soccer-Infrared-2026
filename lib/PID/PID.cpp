@@ -1,0 +1,58 @@
+#include "PID.h"
+
+PID::PID(double kp, double ki, double kd, double minOut, double maxOut, double settleBand)
+    : kp_(kp), ki_(ki), kd_(kd), minOut_(minOut), maxOut_(maxOut), settleBand_(settleBand),
+      lastError_(0), sumError_(0), lastTimeMs_(millis()) {}
+
+double PID::calculate(double setpoint, double input, bool wrap360) {
+    unsigned long now = millis();
+    double deltaTime = (now - lastTimeMs_) / 1000.0;
+
+    // Guard against division by zero if called too fast
+    if (deltaTime <= 0.0) deltaTime = 0.001; 
+
+    double error = setpoint - input;
+
+    // Optional wrapping logic for Heading
+    if (wrap360) {
+        error = wrapValue(error, -180.0, 180.0);
+    }
+
+    // Standard PID Math
+    sumError_ += error * deltaTime;
+    double deltaError = (error - lastError_) / deltaTime;
+
+    double output = (kp_ * error) + (ki_ * sumError_) + (kd_ * deltaError);
+
+    // Apply "PWM Gap" and "Settle Band" Logic
+    double absError = fabs(error);
+    
+    if (absError <= settleBand_) {
+        output = 0.0;
+    } else {
+        // Constrain to Max PWM
+        output = constrain(output, -maxOut_, maxOut_);
+
+        // Apply Minimum PWM floor
+        if (fabs(output) < minOut_) {
+            output = (output >= 0) ? minOut_ : -minOut_;
+        }
+    }
+
+    lastError_ = error;
+    lastTimeMs_ = now;
+    return output;
+}
+
+double PID::wrapValue(double value, double min, double max) {
+    double range = max - min;
+    while (value > max) value -= range;
+    while (value < min) value += range;
+    return value;
+}
+
+void PID::reset() {
+    sumError_ = 0;
+    lastError_ = 0;
+    lastTimeMs_ = millis();
+}
