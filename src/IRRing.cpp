@@ -1,9 +1,10 @@
 #include "sensor_control.h"
+#include "binarySerializationData.h"
 #include <Arduino.h>
 
 /**
  * # Ciclo de la pelota
- * $$ \displaystyle \frac{\text{Número de sensores}}{10,000\ \mathrm{ms}} = \text{tiempo de ciclo} $$
+ * $ \displaystyle \frac{\text{Número de sensores}}{10,000\ \mathrm{ms}} = \text{tiempo de ciclo} $
  * */ 
 #define T_MODEA 714
 unsigned long time_ms = 0;
