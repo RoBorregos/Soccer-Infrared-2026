@@ -16,13 +16,13 @@ const uint8_t kBaselineSamples = 20;
 const uint16_t kBaselineDelayMs = 10;
 
 const uint16_t kLeftMargins[Constants::kPhotoLeftElements] = {
-    50, 50, 50, 50, 50, 50, 50, 50
+    195, 140, 175, 160, 195, 315, 215, 190
 };
 const uint16_t kRightMargins[Constants::kPhotoRightElements] = {
-    50, 50, 50, 50, 50, 50, 50, 50
+    215, 310, 180, 170, 265, 245, 250, 295
 };
 const uint16_t kFrontMargins[Constants::kPhotoFrontElements] = {
-    40, 40, 40, 40, 40, 40
+    200, 200, 200, 200, 200, 200
 };
 
 enum class RobotState { IDLE, AVOIDING_LINE };
@@ -33,6 +33,7 @@ int escapeAngle = 0;
 
 void setup()
 {
+    Serial.begin(115200);
     robot.begin();
     robot.motors.stop();
     delay(2000);
@@ -71,18 +72,21 @@ void loop()
         if (front.is_on_line)
         {
             escapeAngle = 180;
+            Serial.println("Line detected in FRONT. Escaping backwards.");
         }
         else if (left.is_on_line)
         {
             escapeAngle = 270;
+            Serial.println("Line detected on the LEFT. Escaping to the right.");
         }
         else
         {
             escapeAngle = 90;
+            Serial.println("Line detected on the RIGHT. Escaping to the left.");
         }
 
         avoid_start_time = millis();
         current_state = RobotState::AVOIDING_LINE;
-        robot.motors.move(escapeAngle, drivePwm);
+        // robot.motors.move(escapeAngle, drivePwm);
     }
 }

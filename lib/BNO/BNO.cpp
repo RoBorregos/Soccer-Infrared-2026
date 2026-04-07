@@ -13,7 +13,7 @@ void Bno::begin() {
         Serial.print("Ooops, no BNO055 detected ... Check your wiring or I2C ADDR!");
     }
   
-    delay(1000);  
+    delay(1000);
     bno.setExtCrystalUse(true);
 }
 

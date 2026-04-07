@@ -5,9 +5,13 @@ Robot::Robot() : imu(&IMU, IMU_ADDRESS) {
 }
 
 void Robot::begin() {
+    // Motors
     motors.begin();
+
+    // BNO055
     // bno.begin();
-    // Initialize I2C for IMU use (matches tests)
+
+    // IMU
     Wire.begin();
     Wire.setClock(400000);
     int err = imu.begin(calib);
@@ -17,5 +21,16 @@ void Robot::begin() {
     } else {
         Serial.println("IMU initialized");
     }
+
+    // IR Ring
     irring.init(&currentTime);
+
+    // Pixy2
+    // int result = pixy.init();
+    // if (result == 0) {
+    //     Serial.println("[SUCCESS] Pixy2 connected!");
+    // } else {
+    //     Serial.println("[FAIL] Pixy2 not found. Check wiring, pixyMon interface configs, energy supply or whatever idk lol");
+    //     while (true); 
+    // }
 }

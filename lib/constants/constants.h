@@ -1,6 +1,9 @@
 #pragma once
 #include <stdint.h>
 
+#define wrap(val, min, max) \
+    (fmod(fmod((val) - (min), (max) - (min)) + ((max) - (min)), (max) - (min)) + (min))
+
 namespace Constants
 {
 
@@ -29,7 +32,7 @@ namespace Constants
             const uint8_t in1 = 22;
             const uint8_t in2 = 23;
             const uint8_t pwm = 7;
-            constexpr float speedOffset = 0.0f;
+            constexpr float speedOffset = 5.0f;
         }
 
         const double minPWM = 40.0;  // We set the minimum PWM that the robot needs to move
@@ -64,6 +67,7 @@ namespace Constants
     const int kPhotoTresholdFront = 176;
 
     // Per-channel thresholds for each sensor independently.
+    // WHITE_THRESHOLD - GREEN_THRESHOLD = MARGIN
     constexpr uint16_t kPhotoLeftThresholds[kPhotoLeftElements] = {
         18, 24, 24, 3, 15, 14, 31, 8
     };
@@ -73,6 +77,19 @@ namespace Constants
     constexpr uint16_t kPhotoFrontThresholds[kPhotoFrontElements] = {
         44, 43, 44, 43, 43, 44
     };
+
+    // WHITE LINE MARGINS
+    const uint16_t kLeftMargins[Constants::kPhotoLeftElements] = {
+        195, 140, 175, 160, 195, 315, 215, 190
+    };
+    const uint16_t kRightMargins[Constants::kPhotoRightElements] = {
+        215, 310, 180, 170, 265, 245, 250, 295
+    };
+    const uint16_t kFrontMargins[Constants::kPhotoFrontElements] = {
+        200, 200, 200, 200, 200, 200
+    };
+
+
 
     // -----------Ultrasonic sensor--------------
     const uint8_t kTrigPin = 33;

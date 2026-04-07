@@ -18,6 +18,10 @@ double PID::Calculate(double setpoint, double input)
     // time difference since last calculation
     double delta_time = (time - last_time_) / 1000.0; // convert to seconds
 
+    if (delta_time <= 0.0) {
+        delta_time = 0.001;
+    }
+
     error = setpoint - input;
     sum_error += error * delta_time;
     delta_error = (error - last_error_) / delta_time;
@@ -28,16 +32,16 @@ double PID::Calculate(double setpoint, double input)
     // calculate the control signal using PID
     double control = (proportional) + (integral) + (derivative);
 
-    Serial.print("Error: ");
-    Serial.print(error);
-    Serial.print(" Kp: ");
-    Serial.print(proportional);
-    Serial.print(" Ki: ");
-    Serial.print(integral);
-    Serial.print(" Kd: ");
-    Serial.print(derivative);
-    Serial.print(" Output: ");
-    Serial.print(control);
+    // Serial.print("Error: ");
+    // Serial.print(error);
+    // Serial.print(" Kp: ");
+    // Serial.print(proportional);
+    // Serial.print(" Ki: ");
+    // Serial.print(integral);
+    // Serial.print(" Kd: ");
+    // Serial.print(derivative);
+    // Serial.print(" Output: ");
+    // Serial.print(control);
 
     // update previous error and time
     last_error_ = error;

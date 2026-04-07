@@ -59,7 +59,10 @@ private:
     uint16_t threshold_padding_ = 5;
 
     SideData GetSideData(Side side);
+    SideData GetSideData(Side side) const;
     uint16_t GetActiveThreshold(const SideData &side_data, uint8_t channel) const;
+    bool HasLineReading(const SideData &side_data) const;
+    void UpdateConfirmationCounter(const SideData &side_data, bool detected);
 
 public:
     Phototransistor(uint8_t sig_left, uint8_t s0_l, uint8_t s1_l, uint8_t s2_l,
@@ -79,7 +82,7 @@ public:
     void SetThresholdPadding(uint16_t padding);
     PhotoData CheckPhotosOnField(Side side);
 
-    void ReadMuxSide(Multiplexer &mux, uint16_t *target_array, int num_elements);
+    void ReadMuxSide(Multiplexer &mux, uint16_t *target_array, int element_count);
 };
 
 #endif // PHOTO_H

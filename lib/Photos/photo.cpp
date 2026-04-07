@@ -9,7 +9,6 @@ Phototransistor::Phototransistor(uint8_t signal_left, uint8_t s0_l, uint8_t s1_l
 
 Phototransistor::SideData Phototransistor::GetSideData(Side side)
 {
-    // Centralize all per-side data so the rest of the file avoids repeated switches.
     switch (side)
     {
     case Side::Left:
@@ -52,18 +51,49 @@ Phototransistor::SideData Phototransistor::GetSideData(Side side)
     }
 }
 
+Phototransistor::SideData Phototransistor::GetSideData(Side side) const
+{
+    return const_cast<Phototransistor *>(this)->GetSideData(side);
+}
+
 uint16_t Phototransistor::GetActiveThreshold(const SideData &side_data, uint8_t channel) const
 {
     uint16_t active_threshold = side_data.fixed_thresholds[channel];
     if (*side_data.baseline_captured)
     {
-        // Use the safer threshold between the startup green baseline and the fixed tuned value.
         const uint16_t baseline_threshold = side_data.baseline[channel] + side_data.margins[channel];
         const uint16_t fixed_threshold = side_data.fixed_thresholds[channel] + threshold_padding_;
         active_threshold = max(baseline_threshold, fixed_threshold);
     }
 
     return active_threshold;
+}
+
+bool Phototransistor::HasLineReading(const SideData &side_data) const
+{
+    for (uint8_t channel = 0; channel < side_data.elements; channel++)
+    {
+        if (side_data.readings[channel] > GetActiveThreshold(side_data, channel))
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+void Phototransistor::UpdateConfirmationCounter(const SideData &side_data, bool detected)
+{
+    if (!detected)
+    {
+        *side_data.confirmation_counter = 0;
+        return;
+    }
+
+    if (*side_data.confirmation_counter < required_line_confirmations_)
+    {
+        (*side_data.confirmation_counter)++;
+    }
 }
 
 void Phototransistor::Initialize()
@@ -73,9 +103,9 @@ void Phototransistor::Initialize()
     front_mux_.InitializeMultiplexer();
 }
 
-void Phototransistor::ReadMuxSide(Multiplexer &mux, uint16_t *target_array, int num_elements)
+void Phototransistor::ReadMuxSide(Multiplexer &mux, uint16_t *target_array, int element_count)
 {
-    for (int i = 0; i < num_elements; i++)
+    for (int i = 0; i < element_count; i++)
     {
         target_array[i] = mux.readChannel(i);
     }
@@ -97,7 +127,6 @@ void Phototransistor::CaptureSideBaseline(Side side, uint8_t samples, uint16_t d
     SideData side_data = GetSideData(side);
     uint32_t sums[Constants::kPhotoRightElements] = {0};
 
-    // Average several green-field readings so startup noise does not define the baseline.
     for (uint8_t sample = 0; sample < samples; sample++)
     {
         ReadAllSensors(side);
@@ -149,30 +178,8 @@ PhotoData Phototransistor::CheckPhotosOnField(Side side)
     ReadAllSensors(side);
 
     SideData side_data = GetSideData(side);
-    bool detected_this_loop = false;
-
-    // Any channel crossing its active threshold means that side has seen the line.
-    for (uint8_t channel = 0; channel < side_data.elements; channel++)
-    {
-        if (side_data.readings[channel] > GetActiveThreshold(side_data, channel))
-        {
-            detected_this_loop = true;
-            break;
-        }
-    }
-
-    // Confirm detections across loops to reduce noise when required.
-    if (detected_this_loop)
-    {
-        if (*side_data.confirmation_counter < required_line_confirmations_)
-        {
-            (*side_data.confirmation_counter)++;
-        }
-    }
-    else
-    {
-        *side_data.confirmation_counter = 0;
-    }
+    const bool detected_this_loop = HasLineReading(side_data);
+    UpdateConfirmationCounter(side_data, detected_this_loop);
 
     return {
         *side_data.confirmation_counter >= required_line_confirmations_,
@@ -193,7 +200,7 @@ uint16_t Phototransistor::GetRawReading(Side side, uint8_t channel)
 
 uint16_t Phototransistor::GetThreshold(Side side, uint8_t channel) const
 {
-    SideData side_data = const_cast<Phototransistor *>(this)->GetSideData(side);
+    SideData side_data = GetSideData(side);
     if (channel >= side_data.elements)
     {
         return 0;
@@ -204,7 +211,7 @@ uint16_t Phototransistor::GetThreshold(Side side, uint8_t channel) const
 
 uint16_t Phototransistor::GetBaselineReading(Side side, uint8_t channel) const
 {
-    SideData side_data = const_cast<Phototransistor *>(this)->GetSideData(side);
+    SideData side_data = GetSideData(side);
     if (channel >= side_data.elements)
     {
         return 0;

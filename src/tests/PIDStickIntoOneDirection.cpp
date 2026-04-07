@@ -5,8 +5,8 @@
 
 Robot robot;
 
-#define KP 400/Constants::Motor::maxPWM
-#define KI 150/Constants::Motor::maxPWM
+#define KP 600/Constants::Motor::maxPWM
+#define KI 250/Constants::Motor::maxPWM
 #define KD 50/Constants::Motor::maxPWM
 
 #define ERROR_THRESHOLD 100
@@ -31,7 +31,7 @@ void loop() {
     Serial.print(targetYaw);
     Serial.print(" Yaw: ");
     Serial.println(yaw);
-    const float drivePwm = 0.25f * Constants::Motor::maxPWM;
-    robot.motors.move(0, 0, pidOutput);
+    const float drivePwm = 0.60f * Constants::Motor::maxPWM;
+    robot.motors.move(0, drivePwm, pidOutput);
 
 }
