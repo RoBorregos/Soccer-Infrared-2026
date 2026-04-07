@@ -95,7 +95,6 @@ void setup()
     phototransistor_sensors.SetMargins(Side::Left, kLeftMargins, Constants::kPhotoLeftElements);
     phototransistor_sensors.SetMargins(Side::Right, kRightMargins, Constants::kPhotoRightElements);
     phototransistor_sensors.SetMargins(Side::Front, kFrontMargins, Constants::kPhotoFrontElements);
-    phototransistor_sensors.SetRequiredConfirmations(1);
     phototransistor_sensors.SetThresholdPadding(5);
     phototransistor_sensors.CaptureBaseline(kBaselineSamples, kBaselineDelayMs);
 }

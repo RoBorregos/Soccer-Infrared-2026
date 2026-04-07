@@ -29,7 +29,7 @@ namespace Constants
             const uint8_t in1 = 22;
             const uint8_t in2 = 23;
             const uint8_t pwm = 7;
-            constexpr float speedOffset = 0.0f;
+            constexpr float speedOffset = 5.0f;
         }
 
         const double minPWM = 40.0;  // We set the minimum PWM that the robot needs to move
