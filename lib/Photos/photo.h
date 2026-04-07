@@ -29,7 +29,6 @@ private:
         uint16_t *margins;
         const uint16_t *fixed_thresholds;
         uint8_t elements;
-        uint8_t *confirmation_counter;
         bool *baseline_captured;
         int correction_degree;
     };
@@ -50,19 +49,12 @@ private:
     bool left_baseline_captured_ = false;
     bool right_baseline_captured_ = false;
     bool front_baseline_captured_ = false;
-
-    uint8_t left_line_confirmations_ = 0;
-    uint8_t right_line_confirmations_ = 0;
-    uint8_t front_line_confirmations_ = 0;
-
-    uint8_t required_line_confirmations_ = 2;
-    uint16_t threshold_padding_ = 5;
+    uint16_t threshold_padding_ = 15;
 
     SideData GetSideData(Side side);
     SideData GetSideData(Side side) const;
     uint16_t GetActiveThreshold(const SideData &side_data, uint8_t channel) const;
     bool HasLineReading(const SideData &side_data) const;
-    void UpdateConfirmationCounter(const SideData &side_data, bool detected);
 
 public:
     Phototransistor(uint8_t sig_left, uint8_t s0_l, uint8_t s1_l, uint8_t s2_l,
@@ -78,9 +70,11 @@ public:
     void CaptureSideBaseline(Side side, uint8_t samples, uint16_t delay_ms);
     void CaptureBaseline(uint8_t samples, uint16_t delay_ms);
     void SetMargins(Side side, const uint16_t *margins, uint8_t num_elements);
-    void SetRequiredConfirmations(uint8_t confirmations);
     void SetThresholdPadding(uint16_t padding);
     PhotoData CheckPhotosOnField(Side side);
+    // static int GetEscapeAngle(const PhotoData &front, const PhotoData &left, const PhotoData &right);
+    static int GetEscapeAngle(const PhotoData &front);
+
 
     void ReadMuxSide(Multiplexer &mux, uint16_t *target_array, int element_count);
 };

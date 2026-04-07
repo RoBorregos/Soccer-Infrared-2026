@@ -15,7 +15,7 @@ double PID::calculate(double setpoint, double input, bool wrap360) {
 
     // Optional wrapping logic for Heading
     if (wrap360) {
-        error = wrapValue(error, -180.0, 180.0);
+        error = wrap(error, -180.0, 180.0);
     }
 
     // Standard PID Math
@@ -42,13 +42,6 @@ double PID::calculate(double setpoint, double input, bool wrap360) {
     lastError_ = error;
     lastTimeMs_ = now;
     return output;
-}
-
-double PID::wrapValue(double value, double min, double max) {
-    double range = max - min;
-    while (value > max) value -= range;
-    while (value < min) value += range;
-    return value;
 }
 
 void PID::reset() {

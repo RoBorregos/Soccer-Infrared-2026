@@ -26,11 +26,11 @@ void Robot::begin() {
     irring.init(&currentTime);
 
     // Pixy2
-    // int result = pixy.init();
-    // if (result == 0) {
-    //     Serial.println("[SUCCESS] Pixy2 connected!");
-    // } else {
-    //     Serial.println("[FAIL] Pixy2 not found. Check wiring, pixyMon interface configs, energy supply or whatever idk lol");
-    //     while (true); 
-    // }
+    int result = pixy.init();
+    if (result == 0) {
+        Serial.println("[SUCCESS] Pixy2 connected!");
+    } else {
+        Serial.println("[FAIL] Pixy2 not found. Check wiring, pixyMon interface configs, energy supply or whatever idk lol");
+        while (true); 
+    }
 }

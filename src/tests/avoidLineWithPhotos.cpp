@@ -10,19 +10,19 @@ Phototransistor phototransistor_sensors(
     Constants::kSignalPin3, Constants::kMUXPin1_3, Constants::kMUXPin2_3, Constants::kMUXPin3_3
 );
 
-const float drivePwm = 0.45f * Constants::Motor::maxPWM;
+const float drivePwm = 0.55f * Constants::Motor::maxPWM;
 const unsigned long kAvoidDurationMs = 350;
 const uint8_t kBaselineSamples = 20;
 const uint16_t kBaselineDelayMs = 10;
 
-const uint16_t kLeftMargins[Constants::kPhotoLeftElements] = {
-    195, 140, 175, 160, 195, 315, 215, 190
-};
-const uint16_t kRightMargins[Constants::kPhotoRightElements] = {
-    215, 310, 180, 170, 265, 245, 250, 295
-};
+// const uint16_t kLeftMargins[Constants::kPhotoLeftElements] = {
+//     50, 50, 50, 50, 50, 50, 50, 50
+// };
+// const uint16_t kRightMargins[Constants::kPhotoRightElements] = {
+//     50, 50, 50, 50, 50, 50, 50, 50
+// };
 const uint16_t kFrontMargins[Constants::kPhotoFrontElements] = {
-    200, 200, 200, 200, 200, 200
+    40, 40, 40, 40, 40, 40
 };
 
 enum class RobotState { IDLE, AVOIDING_LINE };
@@ -33,16 +33,14 @@ int escapeAngle = 0;
 
 void setup()
 {
-    Serial.begin(115200);
     robot.begin();
     robot.motors.stop();
     delay(2000);
 
     phototransistor_sensors.Initialize();
-    phototransistor_sensors.SetMargins(Side::Left, kLeftMargins, Constants::kPhotoLeftElements);
-    phototransistor_sensors.SetMargins(Side::Right, kRightMargins, Constants::kPhotoRightElements);
+    // phototransistor_sensors.SetMargins(Side::Left, kLeftMargins, Constants::kPhotoLeftElements);
+    // phototransistor_sensors.SetMargins(Side::Right, kRightMargins, Constants::kPhotoRightElements);
     phototransistor_sensors.SetMargins(Side::Front, kFrontMargins, Constants::kPhotoFrontElements);
-    phototransistor_sensors.SetRequiredConfirmations(1);
     phototransistor_sensors.SetThresholdPadding(5);
     phototransistor_sensors.CaptureBaseline(kBaselineSamples, kBaselineDelayMs);
 }
@@ -67,26 +65,13 @@ void loop()
     PhotoData right = phototransistor_sensors.CheckPhotosOnField(Side::Right);
     PhotoData front = phototransistor_sensors.CheckPhotosOnField(Side::Front);
 
-    if (front.is_on_line || left.is_on_line || right.is_on_line)
+    // int detectedEscapeAngle = Phototransistor::GetEscapeAngle(front, left, right);
+    int detectedEscapeAngle = Phototransistor::GetEscapeAngle(front); // Only consider front photos for escape angle to test front line reaction
+    if (detectedEscapeAngle != -1)
     {
-        if (front.is_on_line)
-        {
-            escapeAngle = 180;
-            Serial.println("Line detected in FRONT. Escaping backwards.");
-        }
-        else if (left.is_on_line)
-        {
-            escapeAngle = 270;
-            Serial.println("Line detected on the LEFT. Escaping to the right.");
-        }
-        else
-        {
-            escapeAngle = 90;
-            Serial.println("Line detected on the RIGHT. Escaping to the left.");
-        }
-
+        escapeAngle = detectedEscapeAngle;
         avoid_start_time = millis();
         current_state = RobotState::AVOIDING_LINE;
-        // robot.motors.move(escapeAngle, drivePwm);
+        robot.motors.move(escapeAngle, drivePwm);
     }
 }

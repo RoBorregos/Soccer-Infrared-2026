@@ -79,14 +79,14 @@ namespace Constants
     };
 
     // WHITE LINE MARGINS
-    const uint16_t kLeftMargins[Constants::kPhotoLeftElements] = {
-        195, 140, 175, 160, 195, 315, 215, 190
-    };
-    const uint16_t kRightMargins[Constants::kPhotoRightElements] = {
-        215, 310, 180, 170, 265, 245, 250, 295
-    };
+    // const uint16_t kLeftMargins[Constants::kPhotoLeftElements] = {
+    //     195, 140, 175, 160, 195, 315, 215, 190
+    // };
+    // const uint16_t kRightMargins[Constants::kPhotoRightElements] = {
+    //     215, 310, 180, 170, 265, 245, 250, 295
+    // };
     const uint16_t kFrontMargins[Constants::kPhotoFrontElements] = {
-        200, 200, 200, 200, 200, 200
+        40, 40, 40, 40, 40, 40
     };
 
 

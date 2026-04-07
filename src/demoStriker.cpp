@@ -36,23 +36,22 @@
 #include <Arduino.h>
 #include "constants.h"
 #include "robot.h"
-#include "HeadingPD.h"
+#include "PID.h"
 #include "photo.h"
 #include "Pixy.h"
 
 Robot robot;
 Pixy2 pixy;
-
 /**
  * TEMP CONSTANTS & DECLARATIONS
  * [TODO] - Place this in constants.h 
  * */ 
 double targetYaw = 0.0;
-const float kHeadingKp = 2.3f;
-const float kHeadingKd = 0.18f;
-const float kMaxTurnPwm = 90.0f;
-const float kMinTurnPwm = 24.0f;
-const float kHeadingSettleBandDeg = 2.0f;
+const double kHeadingKp = 2.3f;
+const double kHeadingKd = 0.18f;
+const double kMaxTurnPwm = 90.0f;
+const double kMinTurnPwm = 24.0f;
+const double kHeadingSettleBandDeg = 2.0f;
 const unsigned long kDebugIntervalMs = 100;
 
 static unsigned long lastPixyTime = 0;
@@ -60,8 +59,9 @@ static double ballAngle = 0.0;
 uint16_t xBallComponent = 0;
 uint16_t yBallComponent = 0;
 
-HeadingPD headingPD(kHeadingKp, kHeadingKd, kMaxTurnPwm, kMinTurnPwm, kHeadingSettleBandDeg);
-const float drivePwm = 0.40f * Constants::Motor::maxPWM;
+PID headingPD(kHeadingKp, 0.0, kHeadingKd, kMinTurnPwm, kMaxTurnPwm, kHeadingSettleBandDeg);
+const double drivePwm = 0.40f * Constants::Motor::maxPWM;
+const double escapePwm = 0.60f * Constants::Motor::maxPWM;
 double yaw = 0.0;
 double turnCommand = 0.0;
 
@@ -82,7 +82,7 @@ unsigned long avoid_start_time = 0;
 int escapeAngle = 0;
 
 const unsigned long kAvoidDurationMs = 350;
-const uint8_t kBaselineSamples = 20;
+const uint8_t kBaselineSamples = 25;
 const uint16_t kBaselineDelayMs = 10;
 
 // Ditto pass to constants.h
@@ -97,29 +97,37 @@ uint8_t blueSigMap = (uint8_t)(1u << (BLUE_GOAL - 1));
 void setup() {
     Serial.begin(115200);
     robot.begin();
-    delay(2000);
+    pinMode(LED_BUILTIN, OUTPUT);
     phototransistor_sensors.Initialize();
-    phototransistor_sensors.SetMargins(Side::Left , Constants::kLeftMargins, Constants::kPhotoLeftElements);
-    phototransistor_sensors.SetMargins(Side::Right, Constants::kRightMargins, Constants::kPhotoRightElements);
     phototransistor_sensors.SetMargins(Side::Front, Constants::kFrontMargins, Constants::kPhotoFrontElements);
-    phototransistor_sensors.SetRequiredConfirmations(1);
-    phototransistor_sensors.SetThresholdPadding(5);
+    phototransistor_sensors.SetThresholdPadding(15);
     phototransistor_sensors.CaptureBaseline(kBaselineSamples, kBaselineDelayMs);
-
     phototransistor_sensors.GetBaselineReading(Side::Left, 0);
     phototransistor_sensors.GetBaselineReading(Side::Right, 0);
     phototransistor_sensors.GetBaselineReading(Side::Front, 0);
 
+
     targetYaw = robot.imu.getAngle();
+    delay(2000);
+
+    digitalWrite(LED_BUILTIN, HIGH);
+
 }
 
 void loop() {
+
+    /**
+     * IMU getters
+     */
     yaw = robot.imu.getAngle();
 
+    /**
+     * Vision Getters
+     */
     if (millis() - lastPixyTime >= 100) {
         lastPixyTime = millis();
 
-        // Handle BALL_SIG by requesting only that signature (no loop)
+        // Handle BALL_SIG
         robot.pixy.ccc.getBlocks(true, ballSigMap);
         if (robot.pixy.ccc.numBlocks > 0) {
             Block &blk = robot.pixy.ccc.blocks[0];
@@ -131,28 +139,50 @@ void loop() {
 
         robot.pixy.ccc.getBlocks(true, yellowSigMap);
         if (robot.pixy.ccc.numBlocks > 0) {
-            // TODO: process yellow goal block: robot.pixy.ccc.blocks[0]
+            // TODO: process yellow goal block
         }
 
         robot.pixy.ccc.getBlocks(true, blueSigMap);
         if (robot.pixy.ccc.numBlocks > 0) {
-            // TODO: process blue goal block: robot.pixy.ccc.blocks[0]
+            // TODO: process blue goal block
         }
     }
 
-    phototransistor_sensors.CheckPhotosOnField(Side::Left);
-    phototransistor_sensors.CheckPhotosOnField(Side::Right);
-    phototransistor_sensors.CheckPhotosOnField(Side::Front);
+    /**
+     * 1. CRITICAL PRIORITY: Line Detection
+     */
+    // PhotoData left = phototransistor_sensors.CheckPhotosOnField(Side::Left);
+    // PhotoData right = phototransistor_sensors.CheckPhotosOnField(Side::Right);
+    PhotoData front = phototransistor_sensors.CheckPhotosOnField(Side::Front);
 
+    // Only consider front photos for escape angle to test front line reaction
+    int detectedEscapeAngle = Phototransistor::GetEscapeAngle(front); 
+    
+    // Trigger escape if a line is seen and we aren't already escaping
+    if (detectedEscapeAngle != -1 && current_state != RobotState::AVOIDING_LINE) {
+        escapeAngle = detectedEscapeAngle;
+        avoid_start_time = millis();
+        current_state = RobotState::AVOIDING_LINE;
+    }
+
+    /**
+     * 2. CRITICAL PRIORITY: Avoidance Movement
+     */
     if (current_state == RobotState::AVOIDING_LINE) {
         if (millis() - avoid_start_time >= kAvoidDurationMs) {
+            robot.motors.stop();
             current_state = RobotState::IDLE;
         } else {
-            robot.motors.move(escapeAngle, drivePwm, 0);
-            return;
+            robot.motors.move(escapeAngle, escapePwm);
         }
+        
+        // EARLY RETURN: Ignore IMU, Pixy, and normal driving entirely while escaping!
+        return; 
     }
 
-    turnCommand = headingPD.Update(targetYaw, yaw);
+    /**
+     * 3. Default Movement
+     */
+    turnCommand = headingPD.calculate(targetYaw, yaw);
     robot.motors.move(ballAngle, drivePwm, turnCommand);
 }
