@@ -42,7 +42,7 @@ void loop() {
     vectorRT    = calcRTfromXY(&vectorXY);
 
 
-//Imprimir el radio (distancia y el ángulo
+//Imprimir el radio (distancia y el ángulo)
     if (millis() - time_ms > 50) {
         time_ms = millis();
       

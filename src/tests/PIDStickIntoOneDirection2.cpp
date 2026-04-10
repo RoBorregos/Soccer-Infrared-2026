@@ -1,7 +1,7 @@
 #include <Arduino.h>
 #include "constants.h"
 #include "robot.h"
-#include "HeadingPD.h"
+#include "PID.h"
 
 Robot robot;
 
@@ -14,7 +14,7 @@ const float kMinTurnPwm = 24.0f;
 const float kHeadingSettleBandDeg = 2.0f;
 const unsigned long kDebugIntervalMs = 100;
 
-HeadingPD headingPD(kHeadingKp, kHeadingKd, kMaxTurnPwm, kMinTurnPwm, kHeadingSettleBandDeg);
+PID headingPD(kHeadingKp, 0.0f, kHeadingKd, kMaxTurnPwm, kMinTurnPwm, kHeadingSettleBandDeg);
 const float drivePwm = 0.40f * Constants::Motor::maxPWM;
 
 
@@ -28,6 +28,6 @@ void setup() {
 
 void loop() {
     double yaw = robot.imu.getAngle();
-    double turnCommand = headingPD.Update(targetYaw, yaw);
+    double turnCommand = headingPD.calculate(targetYaw, yaw);
     robot.motors.move(0, drivePwm, turnCommand);
 }

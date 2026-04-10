@@ -1,7 +1,7 @@
 #ifndef IMU_DRIVER_H
 #define IMU_DRIVER_H
 
-#include "FastIMU.h"
+#include "dependencies/FastIMU.h"
 #include <Wire.h>
 
 #define IMU_ADDRESS 0x68
