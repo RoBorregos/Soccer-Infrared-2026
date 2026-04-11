@@ -73,6 +73,10 @@ void BinaryStreamProcessor::processLoop() {
     Serial.println(deserialized[0].ballAngle);
 }
 
+/**
+ * Grabs the first four bytes as little endians and returns the combined uint16_ts. 
+ * This is used for both magnitude and angle extraction.
+ */
 uint16_t BinaryStreamProcessor::readBE16(uint8_t hi, uint8_t lo) {
     return static_cast<uint16_t>((static_cast<uint16_t>(hi) << 8) | static_cast<uint16_t>(lo));
 }
