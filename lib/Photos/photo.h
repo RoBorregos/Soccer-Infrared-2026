@@ -52,6 +52,7 @@ public:
                     uint8_t sig_right, uint8_t s0_r, uint8_t s1_r, uint8_t s2_r,
                     uint8_t sig_front, uint8_t s0_f, uint8_t s1_f, uint8_t s2_f);
 
+
     void Initialize();
     void ReadAllSensors(Side side);
     void CaptureSideBaseline(Side side, uint8_t samples, uint16_t delay_ms);
