@@ -1,65 +1,45 @@
+
 #include "sensor_control.h"
-#include "binarySerializationData.h"
-#include "serializer.h"
-#include "BinaryStreamProcessor.h"
 #include <Arduino.h>
 
-/**
- * # Ciclo de la pelota
- * $ \displaystyle \frac{\text{Número de sensores}}{10,000\ \mathrm{ms}} = \text{tiempo de ciclo} $
- * */ 
+//Ciclo de la pelota
 #define T_MODEA 714
 unsigned long time_ms = 0;
 
-float           pulseWidth[IR_NUM]; 
-sensorInfo_t    sensorInfo;         
-vectorXY_t      vectorXY;          
-vectorRT_t      vectorRT;          
-vectorRT_t      vectorRTWithSma;  
-
-uint16_t magnitude = 500; 
-uint16_t angle = 180;
-IRSerializationData data;
-std::vector<uint8_t> serialized;
-
-namespace {
-    constexpr uint32_t kUartBaud = 57600;
-    constexpr uint32_t kSendIntervalMs = 1;
+void printAngulo(vectorRT_t *self) {
+  Serial.print("a ");
+  Serial.print(self->theta);
+  Serial.print("\n");
 }
-
-uint32_t lastSendMs = 0;
-bool initialTestComplete = false;
-uint8_t testPacketsSent = 0;
 
 void setup() {
-    UART_PORT.begin(kUartBaud);
+    Serial.begin(115200);
     setAllSensorPinsInput();
-    delay(2000);            // Allow ready time for the receiving Arduino
-    lastSendMs = millis();  // Corrected to millis() to match kSendIntervalMs
-
 }
 
+
 void loop() {
-    const uint32_t now = millis();
-    if (now - lastSendMs < kSendIntervalMs) {
-        return;
-    }
 
-    if (!initialTestComplete) {
-        // Send predictable +1/+1 verification sequence
-        data.ballMagnitude = magnitude++;
-        data.ballAngle = angle++;
-        
-        // Send 15 packets to guarantee receiver catches 5 consecutive valid ones
-        if (++testPacketsSent >= 15) {
-            initialTestComplete = true;
-        }
-    } else {
-        data.ballMagnitude = sensorInfo.avgPulseWidth; 
-        data.ballAngle =  static_cast<uint16_t>(vectorRT.theta);
-    }
+  //Inicio de variables
+    float           pulseWidth[IR_NUM]; 
+    sensorInfo_t    sensorInfo;         
+    vectorXY_t      vectorXY;          
+    vectorRT_t      vectorRT;          
+    vectorRT_t      vectorRTWithSma;    
+    
+    sensorInfo  = getAllSensorPulseWidth(pulseWidth, T_MODEA);
+    vectorXY    = calcVectorXYFromPulseWidth(pulseWidth);
+    vectorRT    = calcRTfromXY(&vectorXY);
 
-    serialized = Serializer::serialize(data);
-    UART_PORT.write(serialized.data(), serialized.size());
-    lastSendMs = now;
+
+//Imprimir el radio (distancia y el ángulo
+    if (millis() - time_ms > 50) {
+        time_ms = millis();
+
+      printAngulo(&vectorRTWithSma);
+      Serial.print("r ");
+      Serial.print(sensorInfo.avgPulseWidth);
+      Serial.print("\n");
+
+    }
 }
