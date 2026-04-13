@@ -15,6 +15,7 @@ void setAllSensorPinsInput(void) {
  * */
 bool getSensorPin(uint8_t pin) {
     switch(pin) {
+        // 2, 3, 6, 7, 8
         case 0:  return PINB&(1<<5);  // Physical Pin 19
         case 1:  return PINC&(1<<0);  // Physical Pin 23
         case 2:  return PINC&(1<<1);  // Physical Pin 24
