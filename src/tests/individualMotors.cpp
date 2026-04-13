@@ -32,7 +32,6 @@ void setup(){
 }
 
 void loop() {
-    delay(2000);
     moveMotor(left, 100);
     delay(1000);
     moveMotor(center, 100);

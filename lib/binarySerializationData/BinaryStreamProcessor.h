@@ -31,7 +31,7 @@ public:
     StreamValidationState streamState;
 };
 
-#if defined(__AVR_ATmega2560__)
+#if defined(CORE_TEENSY) || defined(TEENSYDUINO) || defined(__AVR_ATmega2560__)
 #define UART_PORT Serial1
 #else
 #include <SoftwareSerial.h>

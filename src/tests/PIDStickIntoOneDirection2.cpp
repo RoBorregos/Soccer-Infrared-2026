@@ -11,7 +11,7 @@ const float kHeadingKp = 2.3f;
 const float kHeadingKd = 0.18f;
 const float kMaxTurnPwm = 90.0f;
 const float kMinTurnPwm = 24.0f;
-const float kHeadingSettleBandDeg = 2.0f;
+const float kHeadingSettleBandDeg = 5.5f;
 const unsigned long kDebugIntervalMs = 100;
 
 PID headingPD(kHeadingKp, 0.0f, kHeadingKd, kMaxTurnPwm, kMinTurnPwm, kHeadingSettleBandDeg);

@@ -1,5 +1,20 @@
 #include "PID.h"
 
+static double wrapRange(double value, double minValue, double maxValue) {
+    const double range = maxValue - minValue;
+    if (range <= 0.0) {
+        return value;
+    }
+
+    while (value < minValue) {
+        value += range;
+    }
+    while (value > maxValue) {
+        value -= range;
+    }
+    return value;
+}
+
 PID::PID(double kp, double ki, double kd, double minOut, double maxOut, double settleBand)
     : kp_(kp), ki_(ki), kd_(kd), minOut_(minOut), maxOut_(maxOut), settleBand_(settleBand),
       lastError_(0), sumError_(0), lastTimeMs_(millis()) {}
@@ -15,7 +30,7 @@ double PID::calculate(double setpoint, double input, bool wrap360) {
 
     // Optional wrapping logic for Heading
     if (wrap360) {
-        error = wrap(error, -180.0, 180.0);
+        error = wrapRange(error, -180.0, 180.0);
     }
 
     // Standard PID Math

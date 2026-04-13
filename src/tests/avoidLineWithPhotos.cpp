@@ -11,20 +11,6 @@ Phototransistor phototransistor_sensors(
 );
 
 const float drivePwm = 0.55f * Constants::Motor::maxPWM;
-const unsigned long kAvoidDurationMs = 350;
-const uint8_t kBaselineSamples = 20;
-const uint16_t kBaselineDelayMs = 10;
-
-// const uint16_t kLeftMargins[Constants::kPhotoLeftElements] = {
-//     50, 50, 50, 50, 50, 50, 50, 50
-// };
-// const uint16_t kRightMargins[Constants::kPhotoRightElements] = {
-//     50, 50, 50, 50, 50, 50, 50, 50
-// };
-const uint16_t kFrontMargins[Constants::kPhotoFrontElements] = {
-    40, 40, 40, 40, 40, 40
-};
-
 enum class RobotState { IDLE, AVOIDING_LINE };
 RobotState current_state = RobotState::IDLE;
 
@@ -38,18 +24,15 @@ void setup()
     delay(2000);
 
     phototransistor_sensors.Initialize();
-    // phototransistor_sensors.SetMargins(Side::Left, kLeftMargins, Constants::kPhotoLeftElements);
-    // phototransistor_sensors.SetMargins(Side::Right, kRightMargins, Constants::kPhotoRightElements);
-    phototransistor_sensors.SetMargins(Side::Front, kFrontMargins, Constants::kPhotoFrontElements);
-    phototransistor_sensors.SetThresholdPadding(5);
-    phototransistor_sensors.CaptureBaseline(kBaselineSamples, kBaselineDelayMs);
+    phototransistor_sensors.SetAllMargins(Constants::kPhotoMargins);
+    phototransistor_sensors.CaptureBaseline(Constants::kBaselineSamples, Constants::kBaselineDelayMs);
 }
 
 void loop()
 {
     if (current_state == RobotState::AVOIDING_LINE)
     {
-        if (millis() - avoid_start_time >= kAvoidDurationMs)
+        if (millis() - avoid_start_time >= Constants::kAvoidDurationMs)
         {
             robot.motors.stop();
             current_state = RobotState::IDLE;
@@ -60,16 +43,11 @@ void loop()
         }
         return;
     }
-
-    PhotoData left = phototransistor_sensors.CheckPhotosOnField(Side::Left);
-    PhotoData right = phototransistor_sensors.CheckPhotosOnField(Side::Right);
-    PhotoData front = phototransistor_sensors.CheckPhotosOnField(Side::Front);
-
-    // int detectedEscapeAngle = Phototransistor::GetEscapeAngle(front, left, right);
-    int detectedEscapeAngle = Phototransistor::GetEscapeAngle(front); // Only consider front photos for escape angle to test front line reaction
-    if (detectedEscapeAngle != -1)
+    
+    int escapeAngleDetected = phototransistor_sensors.CheckPhotosOnField();
+    if (escapeAngleDetected != -1)
     {
-        escapeAngle = detectedEscapeAngle;
+        escapeAngle = escapeAngleDetected;
         avoid_start_time = millis();
         current_state = RobotState::AVOIDING_LINE;
         robot.motors.move(escapeAngle, drivePwm);

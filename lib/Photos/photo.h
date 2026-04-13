@@ -44,6 +44,7 @@ private:
     bool front_baseline_captured_ = false;
 
     SideData GetSideData(Side side);
+    bool IsSideEnabled(Side side) const;
     bool HasLineReading(const SideData &side_data) const;
     void ReadMuxChannels(Multiplexer &mux, uint16_t *target_array);
 
@@ -52,8 +53,8 @@ public:
                     uint8_t sig_right, uint8_t s0_r, uint8_t s1_r, uint8_t s2_r,
                     uint8_t sig_front, uint8_t s0_f, uint8_t s1_f, uint8_t s2_f);
 
-
     void Initialize();
+    void SetIlluminationEnabled(bool enabled);
     void ReadAllSensors(Side side);
     void CaptureSideBaseline(Side side, uint8_t samples, uint16_t delay_ms);
     void CaptureBaseline(uint8_t samples, uint16_t delay_ms);

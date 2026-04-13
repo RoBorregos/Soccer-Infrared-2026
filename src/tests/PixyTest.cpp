@@ -4,6 +4,7 @@
 Pixy2 pixy;
 
 #define SIG_ORANGE_BALL  1
+#define SIG_YELLOW_GOAL 2
 
 void setup() {
   Serial.begin(115200);
@@ -27,9 +28,9 @@ void loop() {
   bool found = false;
 
   for (int i = 0; i < pixy.ccc.numBlocks; i++) {
-    if (pixy.ccc.blocks[i].m_signature == SIG_ORANGE_BALL) {
+    if (pixy.ccc.blocks[i].m_signature == SIG_YELLOW_GOAL) {
       found = true;
-      Serial.print("BALL| x= ");
+      Serial.print("GOAL| x= ");
       Serial.print(pixy.ccc.blocks[i].m_x);
       Serial.print("  y= ");
       Serial.print(pixy.ccc.blocks[i].m_y);

@@ -9,8 +9,8 @@
 #define FRAME_CENTER_X    158     
 #define FRAME_CENTER_Y    104     
 
-#define SIG_YELLOW_GOAL   3       
-#define SIG_BLUE_GOAL     2       
+#define SIG_YELLOW_GOAL   2       
+#define SIG_BLUE_GOAL     3       
 #define SIG_BALL          1       
 
 // GOALPOST DETECTION THRESHOLDS

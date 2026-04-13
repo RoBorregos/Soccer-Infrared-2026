@@ -3,7 +3,7 @@
 #define RX 0
 #define TX 1
 
-#if !defined(__AVR_ATmega2560__)
+#if !defined(CORE_TEENSY) && !defined(TEENSYDUINO) && !defined(__AVR_ATmega2560__)
 #include <SoftwareSerial.h>
 SoftwareSerial UART_PORT(RX, TX); // For main Arduino.
 #endif

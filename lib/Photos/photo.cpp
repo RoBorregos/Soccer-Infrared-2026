@@ -42,6 +42,20 @@ Phototransistor::SideData Phototransistor::GetSideData(Side side) // A simple he
     }
 }
 
+bool Phototransistor::IsSideEnabled(Side side) const
+{
+    switch (side)
+    {
+    case Side::Left:
+        return Constants::kPhotoLeftEnabled;
+    case Side::Right:
+        return Constants::kPhotoRightEnabled;
+    case Side::Front:
+    default:
+        return Constants::kPhotoFrontEnabled;
+    }
+}
+
 bool Phototransistor::HasLineReading(const SideData &side_data) const // Main logic to determine if we have line on a side
 {
     for (uint8_t channel = 0; channel < Constants::kPhotoElements; channel++)
@@ -65,6 +79,15 @@ void Phototransistor::ReadMuxChannels(Multiplexer &mux, uint16_t *target_array)
 
 void Phototransistor::ReadMuxSide(Side side, uint16_t *target_array) // Singular channel reading
 {
+    if (!IsSideEnabled(side))
+    {
+        for (uint8_t i = 0; i < Constants::kPhotoElements; i++)
+        {
+            target_array[i] = 0;
+        }
+        return;
+    }
+
     SideData side_data = GetSideData(side);
     ReadMuxChannels(*side_data.mux, target_array);
 }
@@ -72,20 +95,44 @@ void Phototransistor::ReadMuxSide(Side side, uint16_t *target_array) // Singular
 
 void Phototransistor::Initialize()
 {
-    left_mux_.InitializeMultiplexer();
-    right_mux_.InitializeMultiplexer();
-    front_mux_.InitializeMultiplexer();
+    SetIlluminationEnabled(true);
+
+    if (Constants::kPhotoLeftEnabled)
+    {
+        left_mux_.InitializeMultiplexer();
+    }
+
+    if (Constants::kPhotoRightEnabled)
+    {
+        right_mux_.InitializeMultiplexer();
+    }
+
+    if (Constants::kPhotoFrontEnabled)
+    {
+        front_mux_.InitializeMultiplexer();
+    }
+}
+
+void Phototransistor::SetIlluminationEnabled(bool enabled)
+{
+    pinMode(Constants::kPhotoLedEnablePin, OUTPUT);
+    digitalWrite(Constants::kPhotoLedEnablePin, enabled ? HIGH : LOW);
 }
 
 void Phototransistor::ReadAllSensors(Side side) // Complete channel reading
 {
+    if (!IsSideEnabled(side))
+    {
+        return;
+    }
+
     SideData side_data = GetSideData(side);
     ReadMuxChannels(*side_data.mux, side_data.readings);
 }
 
 void Phototransistor::CaptureSideBaseline(Side side, uint8_t samples, uint16_t delay_ms) // Captures baseline for a specific side with given samples 
 {
-    if (samples == 0)
+    if (samples == 0 || !IsSideEnabled(side))
     {
         return;
     }
@@ -160,25 +207,34 @@ void Phototransistor::PhotoDebug()
 
 int Phototransistor::CheckPhotosOnField() // Check all sides and return the first escape angle
 {
-    ReadAllSensors(Side::Front);
-    SideData front = GetSideData(Side::Front);
-    if (HasLineReading(front))
+    if (IsSideEnabled(Side::Front))
     {
-        return front.correction_degree;
+        ReadAllSensors(Side::Front);
+        SideData front = GetSideData(Side::Front);
+        if (HasLineReading(front))
+        {
+            return front.correction_degree;
+        }
     }
 
-    ReadAllSensors(Side::Left);
-    SideData left = GetSideData(Side::Left);
-    if (HasLineReading(left))
+    if (IsSideEnabled(Side::Left))
     {
-        return left.correction_degree;
+        ReadAllSensors(Side::Left);
+        SideData left = GetSideData(Side::Left);
+        if (HasLineReading(left))
+        {
+            return left.correction_degree;
+        }
     }
 
-    ReadAllSensors(Side::Right);
-    SideData right = GetSideData(Side::Right);
-    if (HasLineReading(right))
+    if (IsSideEnabled(Side::Right))
     {
-        return right.correction_degree;
+        ReadAllSensors(Side::Right);
+        SideData right = GetSideData(Side::Right);
+        if (HasLineReading(right))
+        {
+            return right.correction_degree;
+        }
     }
 
     return -1;
