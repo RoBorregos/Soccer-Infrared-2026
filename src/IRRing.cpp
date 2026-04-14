@@ -1,45 +1,52 @@
+// src/IRRing.cpp
+// THIS WILL RUN ON THE ARDUINO UNO
+#include "sensorcontrol.h"
 
-#include "sensor_control.h"
-#include <Arduino.h>
+// RoboCupJunior MODE-A waveform period: 833 us (1.2 kHz, 40 kHz carrier)
+#define T_MODEA 833
 
-//Ciclo de la pelota
-#define T_MODEA 714
-unsigned long time_ms = 0;
+// Set Uno to 57600. Due to Uno's 16MHz clock divider, this ACTUALLY produces 58824 baud.
+#define BAUD 9600 
 
-void printAngulo(vectorRT_t *self) {
-  Serial.print("a ");
-  Serial.print(self->theta);
-  Serial.print("\n");
-}
+// Theta: circular moving average — handles the +/-180 deg wrap correctly.
+CircularMovingAverage smaForTheta(80);
 
+unsigned long printTimer_ms = 0;
+
+// ─────────────────────────────────────────────────────────────────────────────
 void setup() {
-    Serial.begin(115200);
+    Serial.begin(BAUD);
     setAllSensorPinsInput();
 }
 
+// Forward declarations
+void serialPrintTheta(float thetaDeg);
 
+// ─────────────────────────────────────────────────────────────────────────────
 void loop() {
+    float        pulseWidth[IR_NUM];
+    vectorXY_t   vectorXY;
+    vectorRT_t   vectorRT;       // used for theta only; vectorRT.radius is NOT a distance
 
-  //Inicio de variables
-    float           pulseWidth[IR_NUM]; 
-    sensorInfo_t    sensorInfo;         
-    vectorXY_t      vectorXY;          
-    vectorRT_t      vectorRT;          
-    vectorRT_t      vectorRTWithSma;    
-    
-    sensorInfo  = getAllSensorPulseWidth(pulseWidth, T_MODEA);
-    vectorXY    = calcVectorXYFromPulseWidth(pulseWidth);
-    vectorRT    = calcRTfromXY(&vectorXY);
+    // 1. Read all sensor pulse widths simultaneously over one 833 us window
+    getAllSensorPulseWidth(pulseWidth, T_MODEA);
 
+    // 2. Compute bearing (theta) via weighted vector sum
+    vectorXY = calcVectorXYFromPulseWidth(pulseWidth);
+    vectorRT = calcRTfromXY(&vectorXY);
 
-//Imprimir el radio (distancia y el ángulo
-    if (millis() - time_ms > 50) {
-        time_ms = millis();
+    // 3. Smooth theta output
+    float smoothedTheta      = smaForTheta.updateData(vectorRT.theta);
 
-      printAngulo(&vectorRTWithSma);
-      Serial.print("r ");
-      Serial.print(sensorInfo.avgPulseWidth);
-      Serial.print("\n");
-
+    // 4. Serial print at 50 ms / 20 Hz
+    if (millis() - printTimer_ms >= 50UL) {
+        printTimer_ms = millis();
+        serialPrintTheta(smoothedTheta);
     }
+}
+
+// ─── Serial helpers ───────────────────────────────────────────────────────────
+void serialPrintTheta(float thetaDeg) {
+    // Sends string data formatted as "X.X\r\n"
+    Serial.println(thetaDeg, 1);
 }
