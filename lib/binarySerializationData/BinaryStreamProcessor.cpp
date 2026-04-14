@@ -1,9 +1,9 @@
 #include "BinaryStreamProcessor.h"
 #define MAX_ATTEMPTS 5
-#define RX 0
-#define TX 1
+#define RX 2
+#define TX 3
 
-#if !defined(CORE_TEENSY) && !defined(TEENSYDUINO) && !defined(__AVR_ATmega2560__)
+#if !defined(__AVR_ATmega2560__)
 #include <SoftwareSerial.h>
 SoftwareSerial UART_PORT(RX, TX); // For main Arduino.
 #endif
