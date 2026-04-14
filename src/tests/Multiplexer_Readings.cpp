@@ -7,11 +7,46 @@ Phototransistor photos(
     Constants::kSignalPin2, Constants::kMUXPin1_2, Constants::kMUXPin2_2, Constants::kMUXPin3_2,
     Constants::kSignalPin3, Constants::kMUXPin1_3, Constants::kMUXPin2_3, Constants::kMUXPin3_3);
 
+void printPhotoPinMap() {
+    Serial.println("Photo pin map:");
+
+    Serial.print("  LED enable: ");
+    Serial.println(Constants::kPhotoLedEnablePin);
+
+    Serial.print("  Bank 1 signal/select: ");
+    Serial.print(Constants::kSignalPin1);
+    Serial.print(" / ");
+    Serial.print(Constants::kMUXPin1_1);
+    Serial.print(", ");
+    Serial.print(Constants::kMUXPin2_1);
+    Serial.print(", ");
+    Serial.println(Constants::kMUXPin3_1);
+
+    Serial.print("  Bank 2 signal/select: ");
+    Serial.print(Constants::kSignalPin2);
+    Serial.print(" / ");
+    Serial.print(Constants::kMUXPin1_2);
+    Serial.print(", ");
+    Serial.print(Constants::kMUXPin2_2);
+    Serial.print(", ");
+    Serial.println(Constants::kMUXPin3_2);
+
+    Serial.print("  Bank 3 signal/select: ");
+    Serial.print(Constants::kSignalPin3);
+    Serial.print(" / ");
+    Serial.print(Constants::kMUXPin1_3);
+    Serial.print(", ");
+    Serial.print(Constants::kMUXPin2_3);
+    Serial.print(", ");
+    Serial.println(Constants::kMUXPin3_3);
+}
+
 void setup() {
     Serial.begin(115200);
     photos.Initialize();
 
     delay(1000);
+    printPhotoPinMap();
     Serial.println("Starting photo debug test...");
 }
 

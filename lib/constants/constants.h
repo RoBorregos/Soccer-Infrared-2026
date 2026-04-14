@@ -38,31 +38,29 @@ namespace Constants
 
     //--------------------Pins for multiplexer and phototransistors--------------------
 
-    //??
+    //muerto
     const uint8_t kSignalPin1 = 16;
     const uint8_t kMUXPin1_1 = 30;
     const uint8_t kMUXPin2_1 = 31;
     const uint8_t kMUXPin3_1 = 32;
 
     //left
-    const uint8_t kSignalPin2 = 17;
-    const uint8_t kMUXPin1_2 = 30;
-    const uint8_t kMUXPin2_2 = 31;
-    const uint8_t kMUXPin3_2 = 32;
-
-    //43,44,45
+    const uint8_t kSignalPin2 = 21;
+    const uint8_t kMUXPin1_2 = 34;
+    const uint8_t kMUXPin2_2 = 35;
+    const uint8_t kMUXPin3_2 = 36;
 
     //??
-    const uint8_t kSignalPin3 = 21;
-    const uint8_t kMUXPin1_3 = 30;
-    const uint8_t kMUXPin2_3 = 31;
-    const uint8_t kMUXPin3_3 = 32;
+    const uint8_t kSignalPin3 = 17;
+    const uint8_t kMUXPin1_3 = 38;
+    const uint8_t kMUXPin2_3 = 39;
+    const uint8_t kMUXPin3_3 = 40;
 
     // Phototransistors
     const uint8_t kPhotoLedEnablePin = 20; // Drive HIGH to power the floor illumination LEDs
     const uint8_t kPhotoElements = 8; // Number of phototransistor channels per side
     // Debugging for enabling/disabling specific phototransistor sides without rewiring 
-    constexpr bool kPhotoLeftEnabled = true;
+    constexpr bool kPhotoLeftEnabled = false;
     constexpr bool kPhotoRightEnabled = true;
     constexpr bool kPhotoFrontEnabled = true;
 
@@ -75,8 +73,8 @@ namespace Constants
     // Phototransitor delta thresholds for line detection
     const uint16_t kPhotoMargins[3][kPhotoElements] = {
         {50, 50, 50, 50, 50, 50, 50, 50},
-        {50, 50, 50, 50, 50, 50, 50, 50},
-        {40, 40, 40, 40, 40, 40, 40, 40}
+        {10, 10, 10, 10, 10, 10, 10, 10},
+        {10, 10, 10, 10, 10, 10, 10, 10}
     };
 
     const unsigned long kAvoidDurationMs = 350;

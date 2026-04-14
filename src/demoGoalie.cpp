@@ -152,6 +152,8 @@ void setup() {
 void loop() {
     const double currentYaw = robot.imu.getAngle();
     const double turnCommand = headingPD.calculate(targetYaw, currentYaw, true);
+    const float holdAngle = 0.0f;
+    const float holdDrivePwm = 0.0f;
 
     if (current_state != RobotState::AVOID_LINE) {
         const int escapeAngleDetected = phototransistor_sensors.CheckPhotosOnField();
@@ -160,17 +162,17 @@ void loop() {
             escapeAngle = escapeAngleDetected;
             avoid_start_time = millis();
             current_state = RobotState::AVOID_LINE;
-            robot.motors.move(escapeAngle, defenseDrivePwm);
+            robot.motors.move(escapeAngle, defenseDrivePwm, turnCommand);
             return;
         }
     }
 
     if (current_state == RobotState::AVOID_LINE) {
         if (millis() - avoid_start_time >= Constants::kAvoidDurationMs) {
-            robot.motors.stop();
+            robot.motors.move(holdAngle, holdDrivePwm, turnCommand);
             current_state = state_before_avoid;
         } else {
-            robot.motors.move(escapeAngle, defenseDrivePwm);
+            robot.motors.move(escapeAngle, defenseDrivePwm, turnCommand);
         }
         return;
     }
@@ -251,5 +253,5 @@ void loop() {
     }
 
     filtered_drive_angle = 0.0f;
-    robot.motors.stop();
+    robot.motors.move(holdAngle, holdDrivePwm, turnCommand);
 }

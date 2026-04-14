@@ -22,7 +22,7 @@ Phototransistor::SideData Phototransistor::GetSideData(Side side) // A simple he
         };
     case Side::Right:
         return {
-            &right_mux_,
+            &front_mux_,
             photo_right_,
             right_baseline_,
             right_margins_,
@@ -32,7 +32,7 @@ Phototransistor::SideData Phototransistor::GetSideData(Side side) // A simple he
     case Side::Front:
     default:
         return {
-            &front_mux_,
+            &right_mux_,
             photo_front_,
             front_baseline_,
             front_margins_,

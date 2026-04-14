@@ -10,7 +10,7 @@ Phototransistor phototransistor_sensors(
     Constants::kSignalPin3, Constants::kMUXPin1_3, Constants::kMUXPin2_3, Constants::kMUXPin3_3
 );
 
-const float drivePwm = 0.55f * Constants::Motor::maxPWM;
+const float drivePwm = 0.75f * Constants::Motor::maxPWM;
 enum class RobotState { IDLE, AVOIDING_LINE };
 RobotState current_state = RobotState::IDLE;
 
