@@ -30,6 +30,7 @@ float filtered_drive_angle = 0.0f;
 
 const float goalDrivePwm = Constants::Striker::kGoalDrivePwmRatio * Constants::Motor::maxPWM;
 const float avoidDrivePwm = Constants::Striker::kAvoidDrivePwmRatio * Constants::Motor::maxPWM;
+const float chaseDrivePwm = Constants::Striker::kChaseDrivePwmRatio * Constants::Motor::maxPWM;
 
 PID headingPD(
     Constants::Striker::kHeadingKp,
@@ -42,6 +43,27 @@ PID headingPD(
 
 float smoothAngleChange(float previous, float current) {
     return previous + (current - previous) * Constants::Striker::kAngleSmoothingAlpha;
+}
+
+double wrapAngle180(double angleDegrees) {
+    angleDegrees = fmod(angleDegrees + 180.0, 360.0);
+    if (angleDegrees < 0.0) {
+        angleDegrees += 360.0;
+    }
+    return angleDegrees - 180.0;
+}
+
+bool isGoalCentered(const PixyBlock& goal) {
+    if (!goal.found) {
+        return false;
+    }
+
+    return abs(static_cast<int>(goal.x) - static_cast<int>(PixyFrame::kCenterX)) <=
+           Constants::Striker::kGoalCenterTolerancePx;
+}
+
+bool isGoalCloseEnoughToAim(const PixyBlock& goal) {
+    return goal.found && goal.area >= Constants::Striker::kGoalAimAreaThreshold;
 }
 
 void setup() {
@@ -63,13 +85,12 @@ void setup() {
                           &last_opponent_goal_seen_time,
                           "opponent goal");
 
-    targetYaw = robot.imu.getAngle();
+    targetYaw = robot.bno.GetBNOData();
     headingPD.reset();
 }
 
 void loop() {
-    const double yaw = robot.imu.getAngle();
-    const double turnCommand = headingPD.calculate(targetYaw, yaw, true);
+    const double yaw = robot.bno.GetBNOData();
     const float holdAngle = 0.0f;
     const float holdDrivePwm = 0.0f;
 
@@ -84,12 +105,13 @@ void loop() {
         }
     }
 
+    const double avoidTurnCommand = headingPD.calculate(targetYaw, yaw, true);
     if (current_state == RobotState::AVOIDING_LINE) {
         if (millis() - avoid_start_time >= Constants::kAvoidDurationMs) {
-            robot.motors.move(holdAngle, holdDrivePwm, turnCommand);
+            robot.motors.move(holdAngle, holdDrivePwm, avoidTurnCommand);
             current_state = state_before_avoid;
         } else {
-            robot.motors.move(escapeAngle, avoidDrivePwm, turnCommand);
+            robot.motors.move(escapeAngle, avoidDrivePwm, avoidTurnCommand);
         }
         return;
     }
@@ -108,38 +130,59 @@ void loop() {
         last_opponent_goal_seen_time = millis();
     }
 
+    robot.irring.UpdateData();
+    const double irStrength = robot.irring.GetStrength();
+    const float rawIrBallAngle = static_cast<float>(robot.irring.GetAngle(
+        Constants::Striker::kIRBallFollowOffsetBack,
+        Constants::Striker::kIRBallFollowOffsetSide,
+        Constants::Striker::kIRBallFollowOffsetFront));
+    const bool hasFarBall = irStrength >= Constants::Striker::kIRFarBallStrength;
+    const bool hasCloseBall = irStrength >= Constants::Striker::kIRCloseBallStrength;
+    const bool goalCentered = isGoalCentered(opponentGoal);
+    const bool goalCloseEnoughToAim = isGoalCloseEnoughToAim(opponentGoal);
+
     if (current_state == RobotState::LOOKING_FOR_BALL) {
-        // Future IR logic will live here.
-        // Example skeleton:
-        // robot.irring.UpdateData();
-        // const double irStrength = robot.irring.GetStrength();
-        // const float rawIrBallAngle = static_cast<float>(robot.irring.GetAngle(...));
-        // const bool ballDetected = irStrength >= ...;
-        // const bool ballControlled = ballDetected && fabs(rawIrBallAngle) <= ... && irStrength >= ...;
-        //
-        // if (ballDetected && !ballControlled) {
-        //     const float irBallAngle = constrain(rawIrBallAngle, -..., ...);
-        //     filtered_drive_angle = smoothAngleChange(filtered_drive_angle, irBallAngle);
-        //     robot.motors.move(filtered_drive_angle, chaseDrivePwm, turnCommand);
-        //     return;
-        // }
-        //
-        // if (ballControlled) {
-        //     current_state = RobotState::DRIVING_TO_GOAL;
-        //     filtered_drive_angle = 0.0f;
-        // }
+        targetYaw = yaw;
+        const double turnCommand = headingPD.calculate(targetYaw, yaw, true);
+
+        if (hasCloseBall) {
+            current_state = RobotState::DRIVING_TO_GOAL;
+            filtered_drive_angle = 0.0f;
+            headingPD.reset();
+            robot.motors.move(0.0f, goalDrivePwm, 0.0f);
+            return;
+        }
+
+        if (hasFarBall) {
+            const float irBallAngle = constrain(rawIrBallAngle,
+                                                -Constants::Striker::kIRBallAngleClampDeg,
+                                                Constants::Striker::kIRBallAngleClampDeg);
+            filtered_drive_angle = smoothAngleChange(filtered_drive_angle, irBallAngle);
+            robot.motors.move(filtered_drive_angle, chaseDrivePwm, turnCommand);
+            return;
+        }
 
         robot.motors.move(holdAngle, holdDrivePwm, turnCommand);
         return;
     }
 
-    // Future IR possession-loss logic should move the striker back to LOOKING_FOR_BALL.
-    // Example:
-    // if (!ballControlled) {
-    //     current_state = RobotState::LOOKING_FOR_BALL;
-    //     filtered_drive_angle = 0.0f;
-    //     return;
-    // }
+    if (!hasCloseBall) {
+        current_state = RobotState::LOOKING_FOR_BALL;
+        filtered_drive_angle = 0.0f;
+        targetYaw = yaw;
+        headingPD.reset();
+
+        if (hasFarBall) {
+            const double turnCommand = headingPD.calculate(targetYaw, yaw, true);
+            const float irBallAngle = constrain(rawIrBallAngle,
+                                                -Constants::Striker::kIRBallAngleClampDeg,
+                                                Constants::Striker::kIRBallAngleClampDeg);
+            filtered_drive_angle = smoothAngleChange(filtered_drive_angle, irBallAngle);
+            robot.motors.move(filtered_drive_angle, chaseDrivePwm, turnCommand);
+            return;
+        }
+        return;
+    }
 
     const bool lostOpponentGoal =
         opponent_goal_signature == 0 ||
@@ -147,12 +190,19 @@ void loop() {
          millis() - last_opponent_goal_seen_time >= Constants::Striker::kGoalLostTimeoutMs);
 
     if (lostOpponentGoal) {
-        robot.motors.move(holdAngle, holdDrivePwm, turnCommand);
+        targetYaw = yaw;
+        const double turnCommand = headingPD.calculate(targetYaw, yaw, true);
+        robot.motors.move(0.0f, goalDrivePwm, turnCommand);
         filtered_drive_angle = 0.0f;
         return;
     }
 
-    filtered_drive_angle = smoothAngleChange(filtered_drive_angle,
-                                             pixyGetGoalDriveAngle(opponentGoal, Constants::Striker::kGoalAngleClampDeg));
-    robot.motors.move(filtered_drive_angle, goalDrivePwm, turnCommand);
+    if (goalCloseEnoughToAim || goalCentered) {
+        targetYaw = wrapAngle180(yaw + opponentGoal.angle);
+    } else {
+        targetYaw = yaw;
+    }
+
+    const double turnCommand = headingPD.calculate(targetYaw, yaw, true);
+    robot.motors.move(0.0f, goalDrivePwm, turnCommand);
 }

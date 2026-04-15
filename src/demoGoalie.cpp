@@ -88,6 +88,15 @@ bool isBallThreat(double strength, float angle) {
            fabs(angle) <= Constants::Goalie::kIRThreatAngleToleranceDeg;
 }
 
+bool isHomeGoalTooFar(const PixyBlock& goal) {
+    if (!goal.found) {
+        return true;
+    }
+
+    return goal.y < Constants::kMinGoalKeeperTresholdY ||
+           goal.y > Constants::kMaxGoalKeeperTresholdY;
+}
+
 float makeInterceptAngle(float goalAngle, float ballAngle) {
     const float clampedBallAngle = clampSymmetric(ballAngle, Constants::Goalie::kBallAngleClampDeg);
     float driveAngle = (clampedBallAngle * Constants::Goalie::kBallFollowWeight) +
@@ -144,13 +153,13 @@ void setup() {
                           &last_home_goal_seen_time,
                           "home goal");
 
-    targetYaw = robot.imu.getAngle();
+    targetYaw = robot.bno.GetBNOData();
     headingPD.reset();
     retreat_start_time = millis();
 }
 
 void loop() {
-    const double currentYaw = robot.imu.getAngle();
+    const double currentYaw = robot.bno.GetBNOData();
     const double turnCommand = headingPD.calculate(targetYaw, currentYaw, true);
     const float holdAngle = 0.0f;
     const float holdDrivePwm = 0.0f;
@@ -219,13 +228,20 @@ void loop() {
     const float goalAngle = goalCorrectionAngle(homeGoal);
     const bool goalOutsideLane = !isGoalInsideLane(homeGoal);
     const bool goalNeedsCentering = !isGoalCentered(homeGoal);
+    const bool goalTooFar = isHomeGoalTooFar(homeGoal);
 
-    // Future IR logic will live here.
-    // Example skeleton:
-    // robot.irring.UpdateData();
-    // const double irRadius = robot.irring.GetStrength();
-    // const float irBallAngle = static_cast<float>(robot.irring.GetAngle(...));
-    // const bool ballThreat = isBallThreat(irRadius, irBallAngle);
+    robot.irring.UpdateData();
+    const double irStrength = robot.irring.GetStrength();
+    const bool ballDetected =
+        robot.irring.HasFreshData(Constants::kIRFreshDataTimeoutMs) &&
+        irStrength >= Constants::Goalie::kIRCloseBallStrength;
+    const float irBallAngle = static_cast<float>(robot.irring.GetAngle(
+        Constants::Striker::kIRBallFollowOffsetBack,
+        Constants::Striker::kIRBallFollowOffsetSide,
+        Constants::Striker::kIRBallFollowOffsetFront));
+    const bool ballThreat =
+        ballDetected &&
+        isBallThreat(irStrength, irBallAngle);
 
     if (goalOutsideLane || goalNeedsCentering) {
         current_state = RobotState::DEFEND_GOAL;
@@ -234,15 +250,19 @@ void loop() {
         return;
     }
 
-    // Future IR-based intercept logic should move the goalie into INTERCEPT_BALL.
-    // Example:
-    // if (ballThreat) {
-    //     current_state = RobotState::INTERCEPT_BALL;
-    //     const float interceptAngle = makeInterceptAngle(goalAngle, irBallAngle);
-    //     filtered_drive_angle = smoothAngleChange(filtered_drive_angle, interceptAngle);
-    //     robot.motors.move(filtered_drive_angle, interceptDrivePwm, turnCommand);
-    //     return;
-    // }
+    if (ballThreat && !goalTooFar) {
+        current_state = RobotState::INTERCEPT_BALL;
+        filtered_drive_angle = smoothAngleChange(filtered_drive_angle, irBallAngle);
+        robot.motors.move(filtered_drive_angle, interceptDrivePwm, turnCommand);
+        return;
+    }
+
+    if (current_state == RobotState::INTERCEPT_BALL && goalTooFar) {
+        current_state = RobotState::RETREAT_TO_GOAL;
+        retreat_start_time = millis();
+        recoverHomePosition(homeGoal, turnCommand);
+        return;
+    }
 
     current_state = RobotState::DEFEND_GOAL;
 
