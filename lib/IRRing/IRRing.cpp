@@ -1,75 +1,84 @@
-#include "IRRing.h"  
+#include "IRRing.h"
 #include <Arduino.h>
 #include <SingleEMAFilterLib.h>
+#include "constants.h"
 
 SingleEMAFilter<double> filterAngle(0.6);
 SingleEMAFilter<double> filterStr(0.6);
 #define BALLANGLECORRECTION 0.0
 
-IRRing::IRRing():
-angle(0),
-strength(0),
-offset(0),
-current_time(nullptr),
-last_time(0)
-{
-
+IRRing::IRRing() :
+    angle(0),
+    strength(0),
+    offset(0),
+    current_time(nullptr),
+    last_time(0) {
 }
 
-void IRRing::init(unsigned long*current_time)
-{
-    this->current_time=current_time;
-    Serial1.begin(115200);
+void IRRing::init(unsigned long* current_time) {
+    this->current_time = current_time;
+    Serial1.begin(Constants::kIRSerialBaud);
     Serial1.setTimeout(100);
 }
 
 void IRRing::UpdateData() {
-    if (Serial1.available()) {
+    while (Serial1.available()) {
         String data = Serial1.readStringUntil('\n');
-        data.trim();  
-        
-        // Data is expected to be received in the format: 
-        // “a 0.1” for angle or “r 10” for force.
-        
-        if (data.length() > 2) {  
-            char type = data[0];
-            String valueStr = data.substring(2);  
-            if (valueStr.length() > 0) {  
-                double value = valueStr.toFloat();  
-                if (type == 'a') {
-                    angle = value + offset;
-                    filterAngle.AddValue(angle);
-                } else if (type == 'r') {
-                    strength = value;
-                    filterStr.AddValue(strength);
-                }
-            }
+        data.trim();
+
+        if (data.length() == 0) {
+            continue;
         }
+
+        if (data.length() > 2 && data[1] == ' ') {
+            const char type = data[0];
+            const String valueStr = data.substring(2);
+            if (valueStr.length() == 0) {
+                continue;
+            }
+
+            const double value = valueStr.toFloat();
+            if (type == 'a') {
+                angle = value + offset;
+                filterAngle.AddValue(angle);
+                hasAngleReading = true;
+                last_time = millis();
+            } else if (type == 'r') {
+                strength = value;
+                filterStr.AddValue(strength);
+            }
+            continue;
+        }
+
+        angle = data.toFloat() + offset;
+        filterAngle.AddValue(angle);
+        hasAngleReading = true;
+        last_time = millis();
     }
-    last_time = *current_time;
 }
 
-void IRRing::SetOffset(double offset){
-    this->offset=offset;
+void IRRing::SetOffset(double offset) {
+    this->offset = offset;
 }
-double IRRing::GetRawAngle(){
-    if(angle > 180){
-        angle -= 360;
+
+double IRRing::GetRawAngle() {
+    double currentAngle = hasAngleReading ? filterAngle.GetLowPass() : angle;
+    if (currentAngle > 180) {
+        currentAngle -= 360;
     }
-    return angle;
+    return currentAngle;
 }
-double IRRing::GetStrength(){
+
+double IRRing::GetStrength() {
     return filterStr.GetLowPass();
 }
 
-// We adjust the angle using different offsets based on how far the ball is from the front.
-// Larger angles (ball behind) get a smaller correction using ballFollowOffsetBack,
-// medium angles (ball to the side) use ballFollowOffsetSide,
-// and smaller angles (ball in front) use ballFollowOffsetFront.
-// This allows more precise control depending on the ball’s position.
+bool IRRing::HasFreshData(unsigned long timeoutMs) const {
+    return hasAngleReading && (millis() - last_time <= timeoutMs);
+}
 
 double IRRing::GetAngle(float ballFollowOffsetBack, float ballFollowOffsetSide, float ballFollowOffsetFront) {
-    double currentAngle = angle;
+    double currentAngle = hasAngleReading ? filterAngle.GetLowPass() : angle;
     currentAngle = fmod(currentAngle + 180.0, 360.0);
     if (currentAngle < 0) currentAngle += 360.0;
     currentAngle -= 180.0;
@@ -83,7 +92,6 @@ double IRRing::GetAngle(float ballFollowOffsetBack, float ballFollowOffsetSide, 
         currentAngle *= ballFollowOffsetFront;
     }
 
-    // Noise reduction
     if (magnitude > 0.05) {
         lastBallAngle = currentAngle;
     } else {
@@ -91,10 +99,8 @@ double IRRing::GetAngle(float ballFollowOffsetBack, float ballFollowOffsetSide, 
     }
 
     double finalResult = (currentAngle * -1) + BALLANGLECORRECTION;
-
-    // WRAPPER
     finalResult = fmod(finalResult + 180.0, 360.0);
     if (finalResult < 0) finalResult += 360.0;
-    
+
     return finalResult - 180.0;
 }

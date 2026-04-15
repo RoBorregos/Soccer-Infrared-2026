@@ -5,11 +5,12 @@ Pixy2 pixy;
 
 #define SIG_ORANGE_BALL  1
 #define SIG_YELLOW_GOAL 2
+#define SIG_BLUE_GOAL   3
 
 void setup() {
   Serial.begin(115200);
   delay(1000);
-  Serial.println("Pixy2 - Ball Detection Test");
+  Serial.println("Pixy2 - Detection Test");
   Serial.println("====================================");
 
   int result = pixy.init();

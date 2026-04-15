@@ -19,6 +19,9 @@ void setup() {
 void loop(){
     irring.UpdateData();
     double ballAngle = irring.GetAngle(kBallFollowOffsetBack, kBallFollowOffsetSide, kBallFollowOffsetFront);
+    double ballStrength = irring.GetStrength();
     Serial.print("Ball angle: ");
-    Serial.println(ballAngle);
+    Serial.print(ballAngle);
+    Serial.print(" strength: ");
+    Serial.println(ballStrength);
 }

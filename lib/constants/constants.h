@@ -90,6 +90,8 @@ namespace Constants
     // ----------------- IMU -------------------
     const float kIMUDeadbandThreshold = 0.5f; // degrees per second
     const double kIMUMaxDt = 0.1; // 100 ms
+    constexpr uint32_t kIRSerialBaud = 9600;
+    constexpr unsigned long kIRFreshDataTimeoutMs = 200;
 
     namespace Striker
     {
@@ -106,6 +108,8 @@ namespace Constants
         constexpr float kIRBallFollowOffsetBack = 1.0f;
         constexpr float kIRBallFollowOffsetSide = 1.0f;
         constexpr float kIRBallFollowOffsetFront = 1.0f;
+        constexpr float kIRFarBallStrength = 4.0f;
+        constexpr float kIRCloseBallStrength = 10.0f;
         constexpr float kIRBallAngleClampDeg = 18.0f;
         constexpr float kIRBallDetectedStrength = 3.0f;
         constexpr float kIRPossessionStrength = 10.0f;
@@ -115,6 +119,8 @@ namespace Constants
         constexpr unsigned long kGoalLostTimeoutMs = 450;
         constexpr float kGoalAngleClampDeg = 8.0f;
         constexpr float kAngleSmoothingAlpha = 0.18f;
+        constexpr uint16_t kGoalCenterTolerancePx = 17;
+        constexpr uint32_t kGoalAimAreaThreshold = 2500;
     }
 
     namespace Goalie
