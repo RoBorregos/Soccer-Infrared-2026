@@ -1,19 +1,19 @@
 #pragma once
 #include <Arduino.h>
+#include "constants.h"
 
 class PID {
-    public:
-        PID(double kp, double ki, double kd, double max_error);
-        double Calculate(double setpoint, double input);
+public:
+    PID(double kp, double ki, double kd, double minOut, double maxOut, double settleBand);
 
-    private:
-        double kp_;
-        double ki_;
-        double kd_;
-        double max_error_;
-        double last_error_;
-        double last_time_;
-        double delta_error;
-        double error;
-        double sum_error;  
+    double calculate(double setpoint, double input, bool wrap360 = false);
+    void reset();
+
+private:
+    double kp_, ki_, kd_;
+    double minOut_, maxOut_, settleBand_;
+    
+    double lastError_;
+    double sumError_;
+    unsigned long lastTimeMs_;
 };
