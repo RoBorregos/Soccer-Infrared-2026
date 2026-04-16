@@ -4,7 +4,7 @@
 #include <Arduino.h>
 #include "moving_average.h"
 #define IR_NUM 15
-
+//                                  1  2  3  4  5  6  7  8   9   10  11  12  13  14  15
 const uint8_t SensorPins[IR_NUM] = {2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, A0, A1, A2, A3};
 
 // Unit vectors for 15 sensors at 360/15 = 24 deg spacing.
