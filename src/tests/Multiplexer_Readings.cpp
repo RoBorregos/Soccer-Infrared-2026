@@ -3,9 +3,9 @@
 #include "constants.h"
 
 Phototransistor photos(
-    Constants::kSignalPin1, Constants::kMUXPin1_1, Constants::kMUXPin2_1, Constants::kMUXPin3_1,
-    Constants::kSignalPin2, Constants::kMUXPin1_2, Constants::kMUXPin2_2, Constants::kMUXPin3_2,
-    Constants::kSignalPin3, Constants::kMUXPin1_3, Constants::kMUXPin2_3, Constants::kMUXPin3_3);
+    Constants::kPhotoLeftSignalPin, Constants::kPhotoLeftMuxS0Pin, Constants::kPhotoLeftMuxS1Pin, Constants::kPhotoLeftMuxS2Pin,
+    Constants::kPhotoRightSignalPin, Constants::kPhotoRightMuxS0Pin, Constants::kPhotoRightMuxS1Pin, Constants::kPhotoRightMuxS2Pin,
+    Constants::kPhotoFrontSignalPin, Constants::kPhotoFrontMuxS0Pin, Constants::kPhotoFrontMuxS1Pin, Constants::kPhotoFrontMuxS2Pin);
 
 void printPhotoPinMap() {
     Serial.println("Photo pin map:");
@@ -13,32 +13,32 @@ void printPhotoPinMap() {
     Serial.print("  LED enable: ");
     Serial.println(Constants::kPhotoLedEnablePin);
 
-    Serial.print("  Bank 1 signal/select: ");
-    Serial.print(Constants::kSignalPin1);
+    Serial.print("  Left signal/select: ");
+    Serial.print(Constants::kPhotoLeftSignalPin);
     Serial.print(" / ");
-    Serial.print(Constants::kMUXPin1_1);
+    Serial.print(Constants::kPhotoLeftMuxS0Pin);
     Serial.print(", ");
-    Serial.print(Constants::kMUXPin2_1);
+    Serial.print(Constants::kPhotoLeftMuxS1Pin);
     Serial.print(", ");
-    Serial.println(Constants::kMUXPin3_1);
+    Serial.println(Constants::kPhotoLeftMuxS2Pin);
 
-    Serial.print("  Bank 2 signal/select: ");
-    Serial.print(Constants::kSignalPin2);
+    Serial.print("  Right signal/select: ");
+    Serial.print(Constants::kPhotoRightSignalPin);
     Serial.print(" / ");
-    Serial.print(Constants::kMUXPin1_2);
+    Serial.print(Constants::kPhotoRightMuxS0Pin);
     Serial.print(", ");
-    Serial.print(Constants::kMUXPin2_2);
+    Serial.print(Constants::kPhotoRightMuxS1Pin);
     Serial.print(", ");
-    Serial.println(Constants::kMUXPin3_2);
+    Serial.println(Constants::kPhotoRightMuxS2Pin);
 
-    Serial.print("  Bank 3 signal/select: ");
-    Serial.print(Constants::kSignalPin3);
+    Serial.print("  Front signal/select: ");
+    Serial.print(Constants::kPhotoFrontSignalPin);
     Serial.print(" / ");
-    Serial.print(Constants::kMUXPin1_3);
+    Serial.print(Constants::kPhotoFrontMuxS0Pin);
     Serial.print(", ");
-    Serial.print(Constants::kMUXPin2_3);
+    Serial.print(Constants::kPhotoFrontMuxS1Pin);
     Serial.print(", ");
-    Serial.println(Constants::kMUXPin3_3);
+    Serial.println(Constants::kPhotoFrontMuxS2Pin);
 }
 
 void setup() {

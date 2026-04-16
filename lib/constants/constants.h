@@ -38,26 +38,29 @@ namespace Constants
 
     //--------------------Pins for multiplexer and phototransistors--------------------
 
-    const uint8_t kSignalPin1 = 16;
-    const uint8_t kMUXPin1_1 = 30;
-    const uint8_t kMUXPin2_1 = 31;
-    const uint8_t kMUXPin3_1 = 32;
+    // These names match the physical robot sides.
+    // The left/right boards are wired opposite of the old bank numbering, so keep
+    // the side labels here authoritative and use them everywhere else.
+    const uint8_t kPhotoLeftSignalPin = 21;
+    const uint8_t kPhotoLeftMuxS0Pin = 34;
+    const uint8_t kPhotoLeftMuxS1Pin = 35;
+    const uint8_t kPhotoLeftMuxS2Pin = 36;
 
-    const uint8_t kSignalPin2 = 21;
-    const uint8_t kMUXPin1_2 = 34;
-    const uint8_t kMUXPin2_2 = 35;
-    const uint8_t kMUXPin3_2 = 36;
+    const uint8_t kPhotoRightSignalPin = 16;
+    const uint8_t kPhotoRightMuxS0Pin = 30;
+    const uint8_t kPhotoRightMuxS1Pin = 31;
+    const uint8_t kPhotoRightMuxS2Pin = 32;
 
-    const uint8_t kSignalPin3 = 17;
-    const uint8_t kMUXPin1_3 = 38;
-    const uint8_t kMUXPin2_3 = 39;
-    const uint8_t kMUXPin3_3 = 40;
+    const uint8_t kPhotoFrontSignalPin = 17;
+    const uint8_t kPhotoFrontMuxS0Pin = 38;
+    const uint8_t kPhotoFrontMuxS1Pin = 39;
+    const uint8_t kPhotoFrontMuxS2Pin = 40;
 
     // Phototransistors
     const uint8_t kPhotoLedEnablePin = 20; // Drive HIGH to power the floor illumination LEDs
     const uint8_t kPhotoElements = 8; // Number of phototransistor channels per side
     // Debugging for enabling/disabling specific phototransistor sides without rewiring 
-    constexpr bool kPhotoLeftEnabled = false;
+    constexpr bool kPhotoLeftEnabled = true;
     constexpr bool kPhotoRightEnabled = true;
     constexpr bool kPhotoFrontEnabled = true;
 
@@ -66,15 +69,18 @@ namespace Constants
     const int kPhotoTresholdRight = 300;
     const int kPhotoTresholdFront = 200;
 
+    constexpr uint16_t kPhotoIgnoredMargin = 4095;
+
     // Per-channel thresholds for each sensor independently.
-    // Phototransitor delta thresholds for line detection
+    // Left channels 2, 4, and 6 are intentionally ignored by giving them a
+    // margin larger than any normal phototransistor delta.
     const uint16_t kPhotoMargins[3][kPhotoElements] = {
-{44, 150, 20, 150, 112, 150, 146, 150},
-{20,20,20,20,20,20,20,20},
-{19,19,19,19,19,19,19,19}
+{125, 175, kPhotoIgnoredMargin, 175, kPhotoIgnoredMargin, 175, kPhotoIgnoredMargin, 175},
+{45, 45, 45, 45, 45, 45, 45, 45},
+ {55, 55, 55, 55, 55, 55, 55, 55}
     };
 
-    const unsigned long kAvoidDurationMs = 450;
+    const unsigned long kAvoidDurationMs = 150;
     const uint8_t kBaselineSamples = 20;
     const uint16_t kBaselineDelayMs = 10;
     const unsigned long kPhotoAutoBaselineQuietMs = 3000;
@@ -100,9 +106,9 @@ namespace Constants
         constexpr float kMinTurnPwm = 24.0f;
         constexpr float kHeadingSettleBandDeg = 3.8f;
 
-        constexpr float kChaseDrivePwmRatio = 0.46f;
-        constexpr float kGoalDrivePwmRatio = 0.56f;
-        constexpr float kAvoidDrivePwmRatio = 0.52f;
+        constexpr float kChaseDrivePwmRatio = 0.58f;
+        constexpr float kGoalDrivePwmRatio = 0.62f;
+        constexpr float kAvoidDrivePwmRatio = 0.65f;
 
         // The ball is considered "in front" inside this +- angle window.
         constexpr float kBallFrontToleranceDeg = 5.0f;

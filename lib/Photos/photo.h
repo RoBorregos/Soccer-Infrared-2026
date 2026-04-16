@@ -48,9 +48,9 @@ private:
     void ReadMuxChannels(Multiplexer &mux, uint16_t *target_array);
 
 public:
-    Phototransistor(uint8_t sig_left, uint8_t s0_l, uint8_t s1_l, uint8_t s2_l,
-                    uint8_t sig_right, uint8_t s0_r, uint8_t s1_r, uint8_t s2_r,
-                    uint8_t sig_front, uint8_t s0_f, uint8_t s1_f, uint8_t s2_f);
+    Phototransistor(uint8_t left_signal_pin, uint8_t left_mux_s0_pin, uint8_t left_mux_s1_pin, uint8_t left_mux_s2_pin,
+                    uint8_t right_signal_pin, uint8_t right_mux_s0_pin, uint8_t right_mux_s1_pin, uint8_t right_mux_s2_pin,
+                    uint8_t front_signal_pin, uint8_t front_mux_s0_pin, uint8_t front_mux_s1_pin, uint8_t front_mux_s2_pin);
 
     void Initialize();
     void SetIlluminationEnabled(bool enabled);

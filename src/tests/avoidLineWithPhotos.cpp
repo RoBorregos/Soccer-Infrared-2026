@@ -1,47 +1,139 @@
 #include <Arduino.h>
 #include "photo.h"
 #include "constants.h"
+#include "PID.h"
 #include "robot.h"
 
 Robot robot;
 Phototransistor phototransistor_sensors(
-    Constants::kSignalPin1, Constants::kMUXPin1_1, Constants::kMUXPin2_1, Constants::kMUXPin3_1,
-    Constants::kSignalPin2, Constants::kMUXPin1_2, Constants::kMUXPin2_2, Constants::kMUXPin3_2,
-    Constants::kSignalPin3, Constants::kMUXPin1_3, Constants::kMUXPin2_3, Constants::kMUXPin3_3
+    Constants::kPhotoLeftSignalPin, Constants::kPhotoLeftMuxS0Pin, Constants::kPhotoLeftMuxS1Pin, Constants::kPhotoLeftMuxS2Pin,
+    Constants::kPhotoRightSignalPin, Constants::kPhotoRightMuxS0Pin, Constants::kPhotoRightMuxS1Pin, Constants::kPhotoRightMuxS2Pin,
+    Constants::kPhotoFrontSignalPin, Constants::kPhotoFrontMuxS0Pin, Constants::kPhotoFrontMuxS1Pin, Constants::kPhotoFrontMuxS2Pin
 );
 
-const float drivePwm = 0.75f * Constants::Motor::maxPWM;
+const float drivePwm = 0.55f * Constants::Motor::maxPWM;
+const float kHeadingKp = 1.5f;
+const float kHeadingKd = 0.10f;
+const float kMaxTurnPwm = 55.0f;
+const float kMinTurnPwm = 12.0f;
+const float kHeadingSettleBandDeg = 6.0f;
 enum class RobotState { IDLE, AVOIDING_LINE };
 RobotState current_state = RobotState::IDLE;
 
+PID headingPD(kHeadingKp, 0.0f, kHeadingKd, kMaxTurnPwm, kMinTurnPwm, kHeadingSettleBandDeg);
+double targetYaw = 0.0;
 unsigned long avoid_start_time = 0;
 int escapeAngle = 0;
+unsigned long last_debug_time = 0;
+
+void printPhotoPinMap()
+{
+    Serial.println("Photo pin map:");
+
+    Serial.print("  LED enable: ");
+    Serial.println(Constants::kPhotoLedEnablePin);
+
+    Serial.print("  Left signal/select: ");
+    Serial.print(Constants::kPhotoLeftSignalPin);
+    Serial.print(" / ");
+    Serial.print(Constants::kPhotoLeftMuxS0Pin);
+    Serial.print(", ");
+    Serial.print(Constants::kPhotoLeftMuxS1Pin);
+    Serial.print(", ");
+    Serial.println(Constants::kPhotoLeftMuxS2Pin);
+
+    Serial.print("  Right signal/select: ");
+    Serial.print(Constants::kPhotoRightSignalPin);
+    Serial.print(" / ");
+    Serial.print(Constants::kPhotoRightMuxS0Pin);
+    Serial.print(", ");
+    Serial.print(Constants::kPhotoRightMuxS1Pin);
+    Serial.print(", ");
+    Serial.println(Constants::kPhotoRightMuxS2Pin);
+
+    Serial.print("  Front signal/select: ");
+    Serial.print(Constants::kPhotoFrontSignalPin);
+    Serial.print(" / ");
+    Serial.print(Constants::kPhotoFrontMuxS0Pin);
+    Serial.print(", ");
+    Serial.print(Constants::kPhotoFrontMuxS1Pin);
+    Serial.print(", ");
+    Serial.println(Constants::kPhotoFrontMuxS2Pin);
+}
+
+void printTriggeredLineSides()
+{
+    if (phototransistor_sensors.HasLineOnSide(Side::Left))
+    {
+        Serial.println("LINE on LEFT");
+    }
+    if (phototransistor_sensors.HasLineOnSide(Side::Right))
+    {
+        Serial.println("LINE on RIGHT");
+    }
+    if (phototransistor_sensors.HasLineOnSide(Side::Front))
+    {
+        Serial.println("LINE on FRONT");
+    }
+}
 
 void setup()
 {
+    Serial.begin(115200);
+#if defined(CORE_TEENSY)
+    analogReadResolution(12);
+    analogReadAveraging(2);
+#endif
+
     robot.begin();
     robot.motors.stop();
     delay(2000);
+    targetYaw = robot.bno.GetBNOData();
+    headingPD.reset();
 
     phototransistor_sensors.Initialize();
     phototransistor_sensors.SetAllMargins(Constants::kPhotoMargins);
+    delay(1000);
     phototransistor_sensors.CaptureBaseline(Constants::kBaselineSamples, Constants::kBaselineDelayMs);
+    printPhotoPinMap();
+    Serial.println("avoidLineWithPhotos ready");
 }
 
 void loop()
 {
+    const double yaw = robot.bno.GetBNOData();
+    const double turnCommand = headingPD.calculate(targetYaw, yaw, true);
+
     if (current_state == RobotState::AVOIDING_LINE)
     {
         if (millis() - avoid_start_time >= Constants::kAvoidDurationMs)
         {
-            robot.motors.stop();
             current_state = RobotState::IDLE;
         }
         else
         {
-            robot.motors.move(escapeAngle, drivePwm);
+            robot.motors.move(escapeAngle, drivePwm, turnCommand);
         }
         return;
+    }
+
+    if (millis() - last_debug_time >= 120)
+    {
+        last_debug_time = millis();
+        phototransistor_sensors.PhotoDebug();
+        if (phototransistor_sensors.HasLineOnSide(Side::Left))
+        {
+            Serial.println("LINE on LEFT");
+        }
+        if (phototransistor_sensors.HasLineOnSide(Side::Right))
+        {
+            Serial.println("LINE on RIGHT");
+        }
+        if (phototransistor_sensors.HasLineOnSide(Side::Front))
+        {
+            Serial.println("LINE on FRONT");
+        }
+        Serial.println();
     }
     
     int escapeAngleDetected = phototransistor_sensors.CheckPhotosOnField();
@@ -50,6 +142,12 @@ void loop()
         escapeAngle = escapeAngleDetected;
         avoid_start_time = millis();
         current_state = RobotState::AVOIDING_LINE;
-        robot.motors.move(escapeAngle, drivePwm);
+        printTriggeredLineSides();
+        Serial.print("Line detected, escaping at ");
+        Serial.println(escapeAngle);
+        robot.motors.move(escapeAngle, drivePwm, turnCommand);
+        return;
     }
+
+    robot.motors.move(0.0f, 0.0f, turnCommand);
 }

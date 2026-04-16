@@ -15,7 +15,7 @@ const float kHeadingSettleBandDeg = 6.0f;
 const unsigned long kDebugIntervalMs = 100;
 
 PID headingPD(kHeadingKp, 0.0f, kHeadingKd, kMaxTurnPwm, kMinTurnPwm, kHeadingSettleBandDeg);
-const float drivePwm = 0.28f * Constants::Motor::maxPWM;
+const float drivePwm = 0.50f * Constants::Motor::maxPWM;
 
 
 void setup() {

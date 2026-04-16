@@ -13,9 +13,9 @@ namespace {
 
 Robot robot;
 Phototransistor phototransistor_sensors(
-    Constants::kSignalPin1, Constants::kMUXPin1_1, Constants::kMUXPin2_1, Constants::kMUXPin3_1,
-    Constants::kSignalPin2, Constants::kMUXPin1_2, Constants::kMUXPin2_2, Constants::kMUXPin3_2,
-    Constants::kSignalPin3, Constants::kMUXPin1_3, Constants::kMUXPin2_3, Constants::kMUXPin3_3
+    Constants::kPhotoLeftSignalPin, Constants::kPhotoLeftMuxS0Pin, Constants::kPhotoLeftMuxS1Pin, Constants::kPhotoLeftMuxS2Pin,
+    Constants::kPhotoRightSignalPin, Constants::kPhotoRightMuxS0Pin, Constants::kPhotoRightMuxS1Pin, Constants::kPhotoRightMuxS2Pin,
+    Constants::kPhotoFrontSignalPin, Constants::kPhotoFrontMuxS0Pin, Constants::kPhotoFrontMuxS1Pin, Constants::kPhotoFrontMuxS2Pin
 );
 
 enum class RobotState {
@@ -29,6 +29,7 @@ RobotState currentState = RobotState::GET_BEHIND_BALL;
 const float kCarryDrivePwm = Constants::Striker::kGoalDrivePwmRatio * Constants::Motor::maxPWM;
 const float kBehindBallDrivePwm = Constants::Striker::kChaseDrivePwmRatio * Constants::Motor::maxPWM;
 const float kAvoidDrivePwm = Constants::Striker::kAvoidDrivePwmRatio * Constants::Motor::maxPWM;
+const float kBallFrontToleranceDeg = 5.0f;
 const unsigned long kStartupHoldMs = 1500;
 
 PID headingPD(
@@ -40,12 +41,13 @@ PID headingPD(
     Constants::Striker::kHeadingSettleBandDeg
 );
 
-double targetYaw = 0.0;
+double startupYaw = 0.0;
 unsigned long motorsEnableMs = 0;
 unsigned long lastGoalSeenTime = 0;
 unsigned long lastBallReadMs = 0;
 unsigned long avoidStartTime = 0;
 uint16_t opponentGoalSignature = 0;
+bool pixyAvailable = false;
 float latestBallAngle = 0.0f;
 int escapeAngle = 0;
 
@@ -57,26 +59,7 @@ bool hasFreshGoalTrack(unsigned long nowMs) {
 }
 
 bool isBallInFront(float ballAngle) {
-    return fabsf(ballAngle) <= Constants::Striker::kBallFrontToleranceDeg;
-}
-
-float makeBehindBallDriveAngle(float ballAngle) {
-    const float absBallAngle = fabsf(ballAngle);
-
-    if (absBallAngle <= Constants::Striker::kBallFrontToleranceDeg) {
-        return 0.0f;
-    }
-
-    if (absBallAngle <= 90.0f) {
-        const float approachAngle = ballAngle * Constants::Striker::kBehindBallApproachGain;
-        return DriveHelpers::clampSymmetric(
-            approachAngle,
-            Constants::Striker::kBehindBallApproachClampDeg);
-    }
-
-    return (ballAngle > 0.0f)
-        ? Constants::Striker::kBehindBallOrbitAngleDeg
-        : -Constants::Striker::kBehindBallOrbitAngleDeg;
+    return fabsf(ballAngle) <= kBallFrontToleranceDeg;
 }
 
 void updateBallAngle() {
@@ -111,14 +94,17 @@ void setup() {
     HWSERIAL.begin(9600);
     HWSERIAL.setTimeout(5);
 
-    pixyInit();
-    pixyLockGoalSignature(opponentGoalSignature,
-                          PixySig::kYellowGoal,
-                          PixySig::kBlueGoal,
-                          Constants::Striker::kGoalCaptureTimeoutMs,
-                          &lastGoalSeenTime);
+    // Colibri can still run as ball-follow + line-avoid without a Pixy attached.
+    pixyAvailable = (pixy.init() == 0);
+    if (pixyAvailable) {
+        pixyLockGoalSignature(opponentGoalSignature,
+                              PixySig::kYellowGoal,
+                              PixySig::kBlueGoal,
+                              Constants::Striker::kGoalCaptureTimeoutMs,
+                              &lastGoalSeenTime);
+    }
 
-    targetYaw = robot.bno.GetBNOData();
+    startupYaw = robot.bno.GetBNOData();
     headingPD.reset();
     motorsEnableMs = millis() + kStartupHoldMs;
 }
@@ -131,13 +117,41 @@ void loop() {
         return;
     }
 
+    PixyBlock opponentGoal = pixyNoGoalBlock();
+    if (pixyAvailable) {
+        if (opponentGoalSignature == 0) {
+            pixyLockGoalSignature(opponentGoalSignature,
+                                  PixySig::kYellowGoal,
+                                  PixySig::kBlueGoal,
+                                  0,
+                                  &lastGoalSeenTime);
+        }
+
+        opponentGoal = pixyReadLockedGoal(opponentGoalSignature);
+        if (opponentGoal.found) {
+            lastGoalSeenTime = nowMs;
+        }
+    }
+
+    const double currentYaw = robot.bno.GetBNOData();
+    const bool goalCloseEnough = pixyAvailable &&
+                                 pixyIsGoalCloseEnough(opponentGoal, Constants::Striker::kGoalAimAreaThreshold);
+    double headingTarget = startupYaw;
+
+    if (goalCloseEnough) {
+        headingTarget = pixyGetHeadingTargetForGoal(opponentGoal,
+                                                    currentYaw,
+                                                    Constants::Striker::kGoalAimAreaThreshold,
+                                                    Constants::Striker::kGoalHeadingDeadbandDeg);
+    }
+
+    const double turnCommand = headingPD.calculate(headingTarget, currentYaw, true);
+
     if (currentState == RobotState::AVOIDING_LINE) {
         if (nowMs - avoidStartTime >= Constants::kAvoidDurationMs) {
-            robot.motors.stop();
             currentState = RobotState::GET_BEHIND_BALL;
         } else {
-            // Keep line escape identical to the standalone avoidLine test behavior.
-            robot.motors.move(static_cast<float>(escapeAngle), kAvoidDrivePwm);
+            robot.motors.move(static_cast<float>(escapeAngle), kAvoidDrivePwm, turnCommand);
         }
         return;
     }
@@ -147,42 +161,18 @@ void loop() {
         escapeAngle = escapeAngleDetected;
         avoidStartTime = nowMs;
         currentState = RobotState::AVOIDING_LINE;
-        robot.motors.move(static_cast<float>(escapeAngle), kAvoidDrivePwm);
+        robot.motors.move(static_cast<float>(escapeAngle), kAvoidDrivePwm, turnCommand);
         return;
     }
 
     updateBallAngle();
 
-    if (opponentGoalSignature == 0) {
-        pixyLockGoalSignature(opponentGoalSignature,
-                              PixySig::kYellowGoal,
-                              PixySig::kBlueGoal,
-                              0,
-                              &lastGoalSeenTime);
-    }
-
-    const PixyBlock opponentGoal = pixyReadLockedGoal(opponentGoalSignature);
-    if (opponentGoal.found) {
-        lastGoalSeenTime = nowMs;
-    }
-
-    const double currentYaw = robot.bno.GetBNOData();
-
     if (nowMs - lastBallReadMs > Constants::kIRFreshDataTimeoutMs) {
-        const double turnCommand = headingPD.calculate(targetYaw, currentYaw, true);
         robot.motors.move(0.0f, 0.0f, turnCommand);
         return;
     }
 
     const float ballAngle = latestBallAngle;
-
-    // Keep the front of the robot pointed toward the goal only when Pixy says the
-    // goal is already close enough to matter. Otherwise keep the current heading stable.
-    targetYaw = pixyGetHeadingTargetForGoal(opponentGoal,
-                                            currentYaw,
-                                            Constants::Striker::kGoalAimAreaThreshold,
-                                            Constants::Striker::kGoalHeadingDeadbandDeg);
-    const double turnCommand = headingPD.calculate(targetYaw, currentYaw, true);
 
     if (isBallInFront(ballAngle)) {
         currentState = RobotState::CARRY_BALL_FORWARD;
@@ -191,6 +181,5 @@ void loop() {
     }
 
     currentState = RobotState::GET_BEHIND_BALL;
-    const float driveAngle = makeBehindBallDriveAngle(ballAngle);
-    robot.motors.move(driveAngle, kBehindBallDrivePwm, turnCommand);
+    robot.motors.move(ballAngle, kBehindBallDrivePwm, turnCommand);
 }

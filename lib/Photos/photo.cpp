@@ -1,11 +1,11 @@
 #include "photo.h"
 
-Phototransistor::Phototransistor(uint8_t signal_left, uint8_t s0_l, uint8_t s1_l, uint8_t s2_l,
-             uint8_t signal_right, uint8_t s0_r, uint8_t s1_r, uint8_t s2_r,
-             uint8_t signal_front, uint8_t s0_f, uint8_t s1_f, uint8_t s2_f)
-    : left_mux_(signal_left, s0_l, s1_l, s2_l),
-      right_mux_(signal_right, s0_r, s1_r, s2_r),
-      front_mux_(signal_front, s0_f, s1_f, s2_f) {}
+Phototransistor::Phototransistor(uint8_t left_signal_pin, uint8_t left_mux_s0_pin, uint8_t left_mux_s1_pin, uint8_t left_mux_s2_pin,
+             uint8_t right_signal_pin, uint8_t right_mux_s0_pin, uint8_t right_mux_s1_pin, uint8_t right_mux_s2_pin,
+             uint8_t front_signal_pin, uint8_t front_mux_s0_pin, uint8_t front_mux_s1_pin, uint8_t front_mux_s2_pin)
+    : left_mux_(left_signal_pin, left_mux_s0_pin, left_mux_s1_pin, left_mux_s2_pin),
+      right_mux_(right_signal_pin, right_mux_s0_pin, right_mux_s1_pin, right_mux_s2_pin),
+      front_mux_(front_signal_pin, front_mux_s0_pin, front_mux_s1_pin, front_mux_s2_pin) {}
 
 Phototransistor::SideData Phototransistor::GetSideData(Side side) // A simple helper to get data from x side
 {
@@ -13,7 +13,7 @@ Phototransistor::SideData Phototransistor::GetSideData(Side side) // A simple he
     {
     case Side::Left:
         return SideData{
-            &right_mux_,
+            &left_mux_,
             photo_left_,
             left_baseline_,
             left_margins_,
@@ -22,7 +22,7 @@ Phototransistor::SideData Phototransistor::GetSideData(Side side) // A simple he
         };
     case Side::Right:
         return SideData{
-            &left_mux_,
+            &right_mux_,
             photo_right_,
             right_baseline_,
             right_margins_,
@@ -191,15 +191,21 @@ void Phototransistor::PhotoDebug()
     ReadMuxSide(Side::Right, right_readings);
     ReadMuxSide(Side::Front, front_readings);
 
-    Serial.println("Ch\tLeft\tRight\tFront");
+    Serial.println("Ch\tLeftB\tLeft\tRightB\tRight\tFrontB\tFront");
 
     for (uint8_t channel = 0; channel < Constants::kPhotoElements; channel++)
     {
         Serial.print(channel);
         Serial.print('\t');
+        Serial.print(left_baseline_[channel]);
+        Serial.print('\t');
         Serial.print(left_readings[channel]);
         Serial.print('\t');
+        Serial.print(right_baseline_[channel]);
+        Serial.print('\t');
         Serial.print(right_readings[channel]);
+        Serial.print('\t');
+        Serial.print(front_baseline_[channel]);
         Serial.print('\t');
         Serial.println(front_readings[channel]);
     }

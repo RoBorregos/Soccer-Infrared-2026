@@ -7,9 +7,9 @@
 Robot robot;
 Motors motors;
 Phototransistor phototransistor_sensors(
-    Constants::kSignalPin1, Constants::kMUXPin1_1, Constants::kMUXPin2_1, Constants::kMUXPin3_1,
-    Constants::kSignalPin2, Constants::kMUXPin1_2, Constants::kMUXPin2_2, Constants::kMUXPin3_2,
-    Constants::kSignalPin3, Constants::kMUXPin1_3, Constants::kMUXPin2_3, Constants::kMUXPin3_3
+    Constants::kPhotoLeftSignalPin, Constants::kPhotoLeftMuxS0Pin, Constants::kPhotoLeftMuxS1Pin, Constants::kPhotoLeftMuxS2Pin,
+    Constants::kPhotoRightSignalPin, Constants::kPhotoRightMuxS0Pin, Constants::kPhotoRightMuxS1Pin, Constants::kPhotoRightMuxS2Pin,
+    Constants::kPhotoFrontSignalPin, Constants::kPhotoFrontMuxS0Pin, Constants::kPhotoFrontMuxS1Pin, Constants::kPhotoFrontMuxS2Pin
 );
 
 double yaw = 0.0;
@@ -135,11 +135,11 @@ void loop()
         }
         else if (left.is_on_line)
         {
-            escapeAngle = 270;
+            escapeAngle = 90;
         }
         else
         {
-            escapeAngle = 90;
+            escapeAngle = -90;
         }
 
         avoid_start_time = millis();

@@ -9,12 +9,12 @@ namespace {
 
 Robot robot;
 
-const float kHeadingKp = 1.5f;
+const float kHeadingKp = 2.5f;
 const float kHeadingKd = 0.10f;
-const float kMaxTurnPwm = 55.0f;
-const float kMinTurnPwm = 12.0f;
-const float kHeadingSettleBandDeg = 6.0f;
-const float kDrivePwm = 0.45f * Constants::Motor::maxPWM;
+const float kMaxTurnPwm = 70.0f;
+const float kMinTurnPwm = 15.0f;
+const float kHeadingSettleBandDeg = 6.5f;
+const float kDrivePwm = 0.60f * Constants::Motor::maxPWM;
 const unsigned long kDebugIntervalMs = 100;
 const unsigned long kBallTimeoutMs = 250;
 
@@ -78,17 +78,17 @@ void loop() {
         robot.motors.move(0.0f, 0.0f, turnCommand);
     }
 
-    if (millis() - lastDebugMs >= kDebugIntervalMs) {
-        lastDebugMs = millis();
-        Serial.print("target=");
-        Serial.print(targetYaw);
-        Serial.print(" yaw=");
-        Serial.print(yaw);
-        Serial.print(" turn=");
-        Serial.print(turnCommand);
-        Serial.print(" ball=");
-        Serial.print(latestBallAngle);
-        Serial.print(" hasBall=");
-        Serial.println(hasBall);
-    }
+    // if (millis() - lastDebugMs >= kDebugIntervalMs) {
+    //     lastDebugMs = millis();
+    //     Serial.print("target=");
+    //     Serial.print(targetYaw);
+    //     Serial.print(" yaw=");
+    //     Serial.print(yaw);
+    //     Serial.print(" turn=");
+    //     Serial.print(turnCommand);
+    //     Serial.print(" ball=");
+    //     Serial.print(latestBallAngle);
+    //     Serial.print(" hasBall=");
+    //     Serial.println(hasBall);
+    // }
 }
