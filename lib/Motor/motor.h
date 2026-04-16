@@ -1,6 +1,5 @@
 #pragma once
 #include <Arduino.h>
-#include <ArduinoSTL.h>
 #include "constants.h"
 
 class Motor {
