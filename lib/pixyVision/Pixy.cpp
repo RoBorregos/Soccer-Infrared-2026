@@ -3,12 +3,25 @@
 
 Pixy2 pixy;
 
+namespace {
+
+double wrapYaw180(double angleDegrees) {
+    while (angleDegrees > 180.0) {
+        angleDegrees -= 360.0;
+    }
+
+    while (angleDegrees < -180.0) {
+        angleDegrees += 360.0;
+    }
+
+    return angleDegrees;
+}
+
+}
+
 void pixyInit() {
     const int result = pixy.init();
-    if (result == 0) {
-        Serial.println(F("[SUCCESS] Pixy2 connected!"));
-    } else {
-        Serial.println(F("[FAIL] Pixy2 not found. Check wiring or power."));
+    if (result != 0) {
         while (true) {
         }
     }
@@ -92,6 +105,8 @@ bool pixyLockGoalSignature(uint16_t &lockedGoalSignature,
                        unsigned long timeoutMs,
                        unsigned long *lastSeenTime,
                        const char *lockLabel) {
+    (void)lockLabel;
+
     if (lockedGoalSignature != 0) {
         return true;
     }
@@ -103,13 +118,6 @@ bool pixyLockGoalSignature(uint16_t &lockedGoalSignature,
         if (lockedGoalSignature != 0) {
             if (lastSeenTime != nullptr) {
                 *lastSeenTime = millis();
-            }
-
-            if (lockLabel != nullptr) {
-                Serial.print(F("Locked "));
-                Serial.print(lockLabel);
-                Serial.print(F(" signature: "));
-                Serial.println(lockedGoalSignature);
             }
 
             return true;
@@ -145,4 +153,44 @@ float pixyGetGoalDriveAngle(const PixyBlock &goalBlock,
     }
 
     return angle;
+}
+
+bool pixyIsGoalCentered(const PixyBlock &goalBlock, uint16_t tolerancePx) {
+    if (!goalBlock.found) {
+        return false;
+    }
+
+    const int centerOffset = static_cast<int>(goalBlock.x) - static_cast<int>(PixyFrame::kCenterX);
+    return abs(centerOffset) <= static_cast<int>(tolerancePx);
+}
+
+bool pixyIsGoalInsideLane(const PixyBlock &goalBlock, int leftX, int rightX) {
+    return goalBlock.found &&
+           goalBlock.x >= leftX &&
+           goalBlock.x <= rightX;
+}
+
+bool pixyIsGoalYInRange(const PixyBlock &goalBlock, uint16_t minY, uint16_t maxY) {
+    return goalBlock.found &&
+           goalBlock.y >= minY &&
+           goalBlock.y <= maxY;
+}
+
+bool pixyIsGoalCloseEnough(const PixyBlock &goalBlock, uint32_t minArea) {
+    return goalBlock.found && goalBlock.area >= minArea;
+}
+
+double pixyGetHeadingTargetForGoal(const PixyBlock &goalBlock,
+                                   double currentYaw,
+                                   uint32_t minArea,
+                                   float angleDeadbandDeg) {
+    if (!pixyIsGoalCloseEnough(goalBlock, minArea)) {
+        return currentYaw;
+    }
+
+    if (fabs(goalBlock.angle) <= angleDeadbandDeg) {
+        return currentYaw;
+    }
+
+    return wrapYaw180(currentYaw + goalBlock.angle);
 }

@@ -5,12 +5,8 @@ Bno::Bno() : bno(-1), sensorValue{}, yaw(0.0), initialized(false) {
 }
 
 void Bno::begin() {
-    Serial.println("BNO085 Orientation Sensor Test");
-    Serial.println("");
-
     initialized = beginAtAddress(kPrimaryAddress) || beginAtAddress(kSecondaryAddress);
     if (!initialized) {
-        Serial.println("Ooops, no BNO085 detected ... Check your wiring or I2C ADDR!");
         return;
     }
 
@@ -46,16 +42,13 @@ bool Bno::beginAtAddress(uint8_t address) {
         return false;
     }
 
-    Serial.print("BNO085 found at 0x");
-    Serial.println(address, HEX);
+    (void)address;
     return true;
 }
 
 void Bno::enableReports() {
     // GAME_ROTATION_VECTOR is the closest BNO085 equivalent to the old IMUPLUS mode.
-    if (!bno.enableReport(SH2_GAME_ROTATION_VECTOR, kReportIntervalUs)) {
-        Serial.println("Could not enable BNO085 game rotation vector report");
-    }
+    bno.enableReport(SH2_GAME_ROTATION_VECTOR, kReportIntervalUs);
 }
 
 double Bno::normalizeYawDegrees(double angle) {

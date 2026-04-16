@@ -12,27 +12,27 @@ Phototransistor::SideData Phototransistor::GetSideData(Side side) // A simple he
     switch (side)
     {
     case Side::Left:
-        return {
-            &left_mux_,
+        return SideData{
+            &right_mux_,
             photo_left_,
             left_baseline_,
             left_margins_,
             &left_baseline_captured_,
-            -90
+            90
         };
     case Side::Right:
-        return {
-            &front_mux_,
+        return SideData{
+            &left_mux_,
             photo_right_,
             right_baseline_,
             right_margins_,
             &right_baseline_captured_,
-            90
+            -90
         };
     case Side::Front:
     default:
-        return {
-            &right_mux_,
+        return SideData{
+            &front_mux_,
             photo_front_,
             front_baseline_,
             front_margins_,
@@ -205,34 +205,43 @@ void Phototransistor::PhotoDebug()
     }
 }
 
+bool Phototransistor::HasLineOnSide(Side side)
+{
+    if (!IsSideEnabled(side))
+    {
+        return false;
+    }
+
+    ReadAllSensors(side);
+    const SideData side_data = GetSideData(side);
+    return HasLineReading(side_data);
+}
+
 int Phototransistor::CheckPhotosOnField() // Check all sides and return the first escape angle
 {
     if (IsSideEnabled(Side::Front))
     {
-        ReadAllSensors(Side::Front);
-        SideData front = GetSideData(Side::Front);
-        if (HasLineReading(front))
+        if (HasLineOnSide(Side::Front))
         {
+            SideData front = GetSideData(Side::Front);
             return front.correction_degree;
         }
     }
 
     if (IsSideEnabled(Side::Left))
     {
-        ReadAllSensors(Side::Left);
-        SideData left = GetSideData(Side::Left);
-        if (HasLineReading(left))
+        if (HasLineOnSide(Side::Left))
         {
+            SideData left = GetSideData(Side::Left);
             return left.correction_degree;
         }
     }
 
     if (IsSideEnabled(Side::Right))
     {
-        ReadAllSensors(Side::Right);
-        SideData right = GetSideData(Side::Right);
-        if (HasLineReading(right))
+        if (HasLineOnSide(Side::Right))
         {
+            SideData right = GetSideData(Side::Right);
             return right.correction_degree;
         }
     }

@@ -26,9 +26,9 @@ namespace Constants
 
         namespace Right
         {
-            const uint8_t pwm = 10;
-            const uint8_t in1 = 8;
-            const uint8_t in2 = 9;
+            const uint8_t pwm = 8;
+            const uint8_t in1 = 9;
+            const uint8_t in2 = 10;
             constexpr float speedOffset = 0.0f;
         }
 
@@ -38,19 +38,16 @@ namespace Constants
 
     //--------------------Pins for multiplexer and phototransistors--------------------
 
-    //muerto
     const uint8_t kSignalPin1 = 16;
     const uint8_t kMUXPin1_1 = 30;
     const uint8_t kMUXPin2_1 = 31;
     const uint8_t kMUXPin3_1 = 32;
 
-    //left
     const uint8_t kSignalPin2 = 21;
     const uint8_t kMUXPin1_2 = 34;
     const uint8_t kMUXPin2_2 = 35;
     const uint8_t kMUXPin3_2 = 36;
 
-    //??
     const uint8_t kSignalPin3 = 17;
     const uint8_t kMUXPin1_3 = 38;
     const uint8_t kMUXPin2_3 = 39;
@@ -72,19 +69,21 @@ namespace Constants
     // Per-channel thresholds for each sensor independently.
     // Phototransitor delta thresholds for line detection
     const uint16_t kPhotoMargins[3][kPhotoElements] = {
-        {50, 50, 50, 50, 50, 50, 50, 50},
-        {10, 10, 10, 10, 10, 10, 10, 10},
-        {10, 10, 10, 10, 10, 10, 10, 10}
+{44, 150, 20, 150, 112, 150, 146, 150},
+{20,20,20,20,20,20,20,20},
+{19,19,19,19,19,19,19,19}
     };
 
-    const unsigned long kAvoidDurationMs = 350;
+    const unsigned long kAvoidDurationMs = 450;
     const uint8_t kBaselineSamples = 20;
     const uint16_t kBaselineDelayMs = 10;
+    const unsigned long kPhotoAutoBaselineQuietMs = 3000;
 
-    const uint8_t kMinGoalKeeperTresholdY = 35; // Minimum distance to the goal in cm
-    const uint8_t kMaxGoalKeeperTresholdY = 65; // Maximum distance to the goal in cm
-    const int kLeftGoalKeeperTresholdX = 116;   // Minimum distance to the goal in cm
-    const int kRightGoalKeeperTresholdX = 275;  // Maximum distance to the goal in cm
+    // Goalie home-goal window. Tune these after mounting or tilting the Pixy.
+    const uint8_t kMinGoalKeeperTresholdY = 35;
+    const uint8_t kMaxGoalKeeperTresholdY = 65;
+    const int kLeftGoalKeeperTresholdX = 116;
+    const int kRightGoalKeeperTresholdX = 275;
     const uint8_t kGoalKeeperTresholdX = 15;
 
     // ----------------- IMU -------------------
@@ -105,21 +104,34 @@ namespace Constants
         constexpr float kGoalDrivePwmRatio = 0.56f;
         constexpr float kAvoidDrivePwmRatio = 0.52f;
 
+        // The ball is considered "in front" inside this +- angle window.
+        constexpr float kBallFrontToleranceDeg = 5.0f;
+        // When the ball is off-center but still in the front half, ease in behind it.
+        constexpr float kBehindBallApproachGain = 0.6f;
+        constexpr float kBehindBallApproachClampDeg = 55.0f;
+        // When the ball is behind the robot, strafe around it instead of hitting backward.
+        constexpr float kBehindBallOrbitAngleDeg = 80.0f;
+
         constexpr float kIRBallFollowOffsetBack = 1.0f;
         constexpr float kIRBallFollowOffsetSide = 1.0f;
         constexpr float kIRBallFollowOffsetFront = 1.0f;
         constexpr float kIRFarBallStrength = 4.0f;
         constexpr float kIRCloseBallStrength = 10.0f;
+        // Tune this if the striker cuts too sharply while chasing the ball.
         constexpr float kIRBallAngleClampDeg = 18.0f;
         constexpr float kIRBallDetectedStrength = 3.0f;
         constexpr float kIRPossessionStrength = 10.0f;
+        // Main striker aiming threshold when using the angle-only UART ball feed.
         constexpr float kIRPossessionAngleToleranceDeg = 24.0f;
 
+        // Retune after moving the camera or retraining goal signatures.
         constexpr unsigned long kGoalCaptureTimeoutMs = 1500;
         constexpr unsigned long kGoalLostTimeoutMs = 450;
         constexpr float kGoalAngleClampDeg = 8.0f;
+        constexpr float kGoalHeadingDeadbandDeg = 2.5f;
         constexpr float kAngleSmoothingAlpha = 0.18f;
         constexpr uint16_t kGoalCenterTolerancePx = 17;
+        // Increase if the robot shoots too early, decrease if it waits too long to aim.
         constexpr uint32_t kGoalAimAreaThreshold = 2500;
     }
 
@@ -142,10 +154,12 @@ namespace Constants
 
         // Flip this sign if the backward-facing Pixy correction strafes the wrong way.
         constexpr float kGoalTrackDirectionSign = 1.0f;
+        // Tune these three first if the goalie drifts left/right while centered on goal.
         constexpr float kGoalAngleClampDeg = 40.0f;
         constexpr float kGoalCenterDeadbandDeg = 5.0f;
         constexpr float kGoalCorrectionWeight = 0.35f;
 
+        // Tune these if the goalie reacts too late or over-slides on ball tracking.
         constexpr float kBallAngleClampDeg = 55.0f;
         constexpr float kBallFollowWeight = 0.65f;
         constexpr float kInterceptDeadbandDeg = 4.0f;

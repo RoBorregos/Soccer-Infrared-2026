@@ -1,65 +1,94 @@
-// #include <Arduino.h>
-// #include "BNO.h"
-// #include "constants.h"
-// #include "robot.h"
-// #include "PID.h"
-// #include "IRRing.h"
+#include <Arduino.h>
+#include "constants.h"
+#include "PID.h"
+#include "robot.h"
 
-// IRRing irring;
-// Robot robot;
-// Bno bno;
+#define HWSERIAL Serial3
 
-// #define KP 180/Constants::Motor::maxPWM
-// #define KI 42/Constants::Motor::maxPWM
-// #define KD 50/Constants::Motor::maxPWM
+namespace {
 
-// float kBallFollowOffsetBack = 1.2;
-// float kBallFollowOffsetSide = 1.0;
-// float kBallFollowOffsetFront = 1.0;
+Robot robot;
 
-// #define ERROR_THRESHOLD 100
+const float kHeadingKp = 1.5f;
+const float kHeadingKd = 0.10f;
+const float kMaxTurnPwm = 55.0f;
+const float kMinTurnPwm = 12.0f;
+const float kHeadingSettleBandDeg = 6.0f;
+const float kDrivePwm = 0.45f * Constants::Motor::maxPWM;
+const unsigned long kDebugIntervalMs = 100;
+const unsigned long kBallTimeoutMs = 250;
 
-// PID pid(KP, KI, KD, ERROR_THRESHOLD);
+PID headingPD(kHeadingKp, 0.0f, kHeadingKd, kMaxTurnPwm, kMinTurnPwm, kHeadingSettleBandDeg);
 
-// double targetYaw = 0.0;
-// double BNOCORRECTION = 0.0;
+double targetYaw = 0.0;
+float latestBallAngle = 0.0f;
+unsigned long lastBallReadMs = 0;
 
-// static double WrapAngle180(double deg) {
-//     deg = fmod(deg + 180.0, 360.0);
-//     if (deg < 0) deg += 360.0;
-//     return deg - 180.0;
-// }
+}
 
-// void setup() {
-//     Serial.begin(115200);
-//     robot.begin();
-//     bno.begin();
-//     delay(1000);
-//     double initialYaw = bno.GetBNOData();
-//     unsigned long currentTime = millis();
-//     irring.init(&currentTime);
-//     irring.SetOffset(0.0);
-//     irring.UpdateData();
-//     delay(1000);
-    
-// }
+float wrapAngle180(float angleDegrees) {
+    while (angleDegrees > 180.0f) {
+        angleDegrees -= 360.0f;
+    }
+    while (angleDegrees < -180.0f) {
+        angleDegrees += 360.0f;
+    }
+    return angleDegrees;
+}
 
-// void loop() {
-//     irring.UpdateData();
-//     double yaw = WrapAngle180(bno.GetBNOData() + BNOCORRECTION);
-//     // TEMP SIGN CORRECTION
-//     double ballAngle = -irring.GetAngle(kBallFollowOffsetBack, kBallFollowOffsetSide, kBallFollowOffsetFront);
-//     double speed = pid.Calculate(targetYaw, yaw);
-//     double ballAngleRelativeToRobot = ballAngle + yaw;
-//     Serial.print(" BOut: ");
-//     Serial.print(ballAngle);
-//     Serial.print(" DAB: ");
-//     Serial.print(ballAngleRelativeToRobot);
-//     Serial.print(" Yaw: ");
-//     Serial.println(yaw);
+void setup() {
+    Serial.begin(115200);
+    HWSERIAL.begin(9600);
 
-//     // NOTE: Motor::setSpeed floors to an integer PWM value.
-//     // If we pass 0.35f directly, PWM becomes 0 and the robot won't translate.
-//     const float drivePwm = 0.35f * Constants::Motor::maxPWM;
-//     robot.motors.move(ballAngle, drivePwm, speed);
-// }
+    robot.begin();
+    robot.motors.stop();
+    delay(2000);
+
+    targetYaw = robot.bno.GetBNOData();
+    headingPD.reset();
+}
+
+void loop() {
+    static unsigned long lastDebugMs = 0;
+
+    if (HWSERIAL.available() > 0) {
+        String incomingData = HWSERIAL.readStringUntil('\n');
+        incomingData.trim();
+
+        if (incomingData.length() > 0) {
+            if (incomingData.startsWith("a ")) {
+                const float incomingAngle = incomingData.substring(2).toFloat();
+                latestBallAngle = wrapAngle180(180.0f - incomingAngle);
+                lastBallReadMs = millis();
+            } else if (!incomingData.startsWith("r ")) {
+                const float incomingAngle = incomingData.toFloat();
+                latestBallAngle = wrapAngle180(180.0f - incomingAngle);
+                lastBallReadMs = millis();
+            }
+        }
+    }
+
+    const double yaw = robot.bno.GetBNOData();
+    const double turnCommand = headingPD.calculate(targetYaw, yaw, true);
+    const bool hasBall = (millis() - lastBallReadMs) <= kBallTimeoutMs;
+
+    if (hasBall) {
+        robot.motors.move(latestBallAngle, kDrivePwm, turnCommand);
+    } else {
+        robot.motors.move(0.0f, 0.0f, turnCommand);
+    }
+
+    if (millis() - lastDebugMs >= kDebugIntervalMs) {
+        lastDebugMs = millis();
+        Serial.print("target=");
+        Serial.print(targetYaw);
+        Serial.print(" yaw=");
+        Serial.print(yaw);
+        Serial.print(" turn=");
+        Serial.print(turnCommand);
+        Serial.print(" ball=");
+        Serial.print(latestBallAngle);
+        Serial.print(" hasBall=");
+        Serial.println(hasBall);
+    }
+}

@@ -9,5 +9,6 @@ public:
 private:
     uint8_t signal_pin_;
     uint8_t s0_, s1_, s2_;
+    void selectChannel(uint8_t channel);
 };
 #endif // MUX_H

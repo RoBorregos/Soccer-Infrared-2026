@@ -68,4 +68,13 @@ float pixyGetGoalDriveAngle(const PixyBlock &goalBlock,
                             float directionSign = 1.0f,
                             float deadbandDeg = 0.0f);
 
+bool pixyIsGoalCentered(const PixyBlock &goalBlock, uint16_t tolerancePx);
+bool pixyIsGoalInsideLane(const PixyBlock &goalBlock, int leftX, int rightX);
+bool pixyIsGoalYInRange(const PixyBlock &goalBlock, uint16_t minY, uint16_t maxY);
+bool pixyIsGoalCloseEnough(const PixyBlock &goalBlock, uint32_t minArea);
+double pixyGetHeadingTargetForGoal(const PixyBlock &goalBlock,
+                                   double currentYaw,
+                                   uint32_t minArea,
+                                   float angleDeadbandDeg = 0.0f);
+
 extern Pixy2 pixy;

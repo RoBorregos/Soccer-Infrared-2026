@@ -43,16 +43,31 @@ void printPhotoPinMap() {
 
 void setup() {
     Serial.begin(115200);
+#if defined(CORE_TEENSY)
+    analogReadResolution(12);
+    analogReadAveraging(2);
+#endif
     photos.Initialize();
+    photos.SetAllMargins(Constants::kPhotoMargins);
 
     delay(1000);
+    photos.CaptureBaseline(Constants::kBaselineSamples, Constants::kBaselineDelayMs);
     printPhotoPinMap();
     Serial.println("Starting photo debug test...");
 }
 
 void loop() {
     photos.PhotoDebug();
+    if (photos.HasLineOnSide(Side::Left)) {
+        Serial.println("LINE on LEFT");
+    }
+    if (photos.HasLineOnSide(Side::Right)) {
+        Serial.println("LINE on RIGHT");
+    }
+    if (photos.HasLineOnSide(Side::Front)) {
+        Serial.println("LINE on FRONT");
+    }
     Serial.println();
-    delay(350);
+    delay(120);
 }
 

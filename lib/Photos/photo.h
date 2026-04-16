@@ -42,7 +42,6 @@ private:
     bool left_baseline_captured_ = false;
     bool right_baseline_captured_ = false;
     bool front_baseline_captured_ = false;
-
     SideData GetSideData(Side side);
     bool IsSideEnabled(Side side) const;
     bool HasLineReading(const SideData &side_data) const;
@@ -61,6 +60,7 @@ public:
     void SetMargins(Side side, const uint16_t *margins);
     void SetAllMargins(const uint16_t margins[3][Constants::kPhotoElements]);
     void PhotoDebug();
+    bool HasLineOnSide(Side side);
     int CheckPhotosOnField(); // Returns an escape angle, or -1 when no line is detected
     void ReadMuxSide(Side side, uint16_t *target_array);
 };
