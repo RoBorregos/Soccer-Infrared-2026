@@ -182,4 +182,21 @@ namespace Constants
         constexpr float kIRCloseBallStrength = 6.0f;
         constexpr float kIRThreatAngleToleranceDeg = 95.0f;
     }
+
+    namespace Ajolote
+    {
+        // Ajolote copies the striker flow, but at lower speed for tighter control.
+        constexpr float kChaseDrivePwmRatio = 0.44f;
+        constexpr float kAvoidDrivePwmRatio = 0.58f;
+        constexpr float kHomeRecoveryDrivePwmRatio = 0.32f;
+        constexpr float kGoalSearchDrivePwmRatio = 0.22f;
+        constexpr unsigned long kStartupHoldMs = 1500;
+
+        // Tune this first during field testing so the robot only roams as far as you want.
+        constexpr uint32_t kHomeGoalMinAreaThreshold = 1800;
+        constexpr unsigned long kGoalCaptureTimeoutMs = 1500;
+        constexpr unsigned long kGoalLostTimeoutMs = 450;
+        constexpr float kHomeGoalAngleClampDeg = 40.0f;
+        constexpr float kHomeGoalCenterDeadbandDeg = 5.0f;
+    }
 }

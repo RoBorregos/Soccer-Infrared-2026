@@ -32,6 +32,7 @@ public:
     else
       m_addr = arg;
     Wire.begin();
+    Wire.setClock(400000);
     return 0;
   }
 
@@ -47,6 +48,10 @@ public:
     for (i=0; i<len; i+=n)
     {
       n = Wire.requestFrom((uint8_t)m_addr, (uint8_t)(len-i));
+      // A zero-byte read means the bus did not answer. Returning an error here
+      // prevents the Pixy init loop from spinning forever on i += 0.
+      if (n == 0)
+        return PIXY_RESULT_ERROR;
       for (j=0; j<n; j++)
       {
         buf[j+i] = Wire.read();
@@ -68,7 +73,8 @@ public:
         packet = PIXY_I2C_MAX_SEND;
       Wire.beginTransmission(m_addr);
       Wire.write(buf+i, packet);
-      Wire.endTransmission();
+      if (Wire.endTransmission() != 0)
+        return PIXY_RESULT_ERROR;
     }
     return len;
   }
