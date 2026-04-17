@@ -65,8 +65,8 @@ float makeInterceptAngle(float goalAngle, float ballAngle) {
     const float clampedBallAngle = DriveHelpers::clampSymmetric(
         ballAngle,
         Constants::Goalie::kBallAngleClampDeg);
-    float driveAngle = clampedBallAngle +
-                       (goalAngle * Constants::Goalie::kGoalCorrectionWeight);
+    float driveAngle = Constants::Goalie::kBallFollowWeight *
+                       (clampedBallAngle + (goalAngle * Constants::Goalie::kGoalCorrectionWeight));
     driveAngle = DriveHelpers::clampSymmetric(driveAngle, Constants::Goalie::kBallAngleClampDeg);
 
     if (fabsf(driveAngle) <= Constants::Goalie::kInterceptDeadbandDeg) {
