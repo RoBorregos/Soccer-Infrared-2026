@@ -67,16 +67,54 @@ void getAllSensorPulseWidth(float pulseWidth[IR_NUM], uint16_t timeLimit_us) {
 // Quadratic weighting (WEIGHT_EXPONENT = 2) suppresses weak off-axis sensors,
 // sharpening angular resolution without needing a physical sensor mask.
 //
+#define WEIGHT_EXPONENT 2.0f
+
+// ─── calcVectorXYFromPulseWidth (REWORKED) ──────────────────────────────────
+// Uses the "Peak + Adjacent" method to ignore reflections from other robots.
+// Instead of a global sum, it only interpolates using the strongest sensor
+// and its immediate neighbors.
+//
 vectorXY_t calcVectorXYFromPulseWidth(float *pulseWidth) {
     vectorXY_t rslt = {0.0f, 0.0f};
+
+    // 1. Find the sensor with the highest pulse width (the peak)
+    int maxIdx = 0;
+    float maxVal = 0.0f;
     for (int i = 0; i < IR_NUM; i++) {
-        float w = powf(pulseWidth[i], WEIGHT_EXPONENT);
+        if (pulseWidth[i] > maxVal) {
+            maxVal = pulseWidth[i];
+            maxIdx = i;
+        }
+    }
+
+    // If no signal is detected at all (ball is off or covered), return 0 vector
+    if (maxVal <= 0.0f) {
+        return rslt;
+    }
+
+    // 2. Define how many neighboring sensors to include.
+    // For 15 sensors (24-degree spacing), looking at +/- 2 sensors 
+    // gives you a smooth 120-degree forward viewing cone and 
+    // completely ignores the remaining 240 degrees of reflections.
+    const int ADJACENT_SENSORS = 3; 
+
+    // 3. Calculate localized vector sum
+    for (int offset = -ADJACENT_SENSORS; offset <= ADJACENT_SENSORS; offset++) {
+        
+        // Handle circular wrap-around (e.g., index -1 becomes 14)
+        int i = (maxIdx + offset + IR_NUM) % IR_NUM;
+
+        // We use linear weighting here (pulseWidth[i] directly) because 
+        // we've already eliminated the background noise/reflections by 
+        // ignoring the distant sensors.
+        float w = pulseWidth[i]; 
+        
         rslt.x += w * unitVectorX[i];
         rslt.y += w * unitVectorY[i];
     }
+
     return rslt;
 }
-
 // ─── calcRTfromXY ─────────────────────────────────────────────────────────────
 // Converts XY vector to polar form.
 // atan2(x, y) gives bearing measured clockwise from +Y (forward = 0 deg).
