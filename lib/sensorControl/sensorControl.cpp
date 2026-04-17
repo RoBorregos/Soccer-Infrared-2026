@@ -26,14 +26,15 @@ bool getSensorPin(uint8_t pin) {
         case 6:  return PINB & (1<<0);  // PB0, Physical Pin 14
         case 7:  return PINB & (1<<1);  // PB1, Physical Pin 15
         case 8: return PINB & (1<<2);  // PB2, Physical Pin 16
-        case 9: return PINB & (1<<4);  // PB4, Physical Pin 18
-        case 10: return PINB & (1<<5);  // PB5, Physical Pin 19
+        case 9: return PINB & (1<<3);  // PB3, Physical Pin 17
+        case 10: return PINB & (1<<4);  // PB4, Physical Pin 18
+        case 11: return PINB & (1<<5);  // PB5, Physical Pin 19
         
         // Port C (Analog Pins A0-A5)
-        case 11: return PINC & (1<<0);  // PC0, Physical Pin 23
-        case 12: return PINC & (1<<1);  // PC1, Physical Pin 24
-        case 13: return PINC & (1<<2);  // PC2, Physical Pin 25
-        case 14: return PINC & (1<<3);  // PC3, Physical Pin 26
+        case 12: return PINC & (1<<0);  // PC0, Physical Pin 23
+        case 13: return PINC & (1<<1);  // PC1, Physical Pin 24
+        case 14: return PINC & (1<<2);  // PC2, Physical Pin 25
+        case 15: return PINC & (1<<3);  // PC3, Physical Pin 26
     }
 }
 
