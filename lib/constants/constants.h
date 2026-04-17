@@ -31,7 +31,7 @@ namespace Constants
             const uint8_t pwm = 8;
             const uint8_t in1 = 9;
             const uint8_t in2 = 10;
-            constexpr float speedOffset = 0.0f;
+            constexpr float speedOffset = 5.0f;
             constexpr float directionSign = -1.0f;
         }
 
@@ -65,8 +65,9 @@ namespace Constants
     const uint8_t kPhotoElements = 8; // Number of phototransistor channels per side
     // Debugging for enabling/disabling specific phototransistor sides without rewiring 
     constexpr bool kPhotoLeftEnabled = false;
-    constexpr bool kPhotoRightEnabled = true;
+    constexpr bool kPhotoRightEnabled = false;
     constexpr bool kPhotoFrontEnabled = true;
+    constexpr uint16_t kPhotoLateralMuxSwitchSettleUs = 250;
 
     // Side-wide thresholds kept for compatibility with older tests/debug prints.
     const int kPhotoTresholdLeft = 380;
@@ -79,9 +80,9 @@ namespace Constants
     // Left channels 2, 4, and 6 are intentionally ignored by giving them a
     // margin larger than any normal phototransistor delta.
     const uint16_t kPhotoMargins[3][kPhotoElements] = {
-{125, 175, kPhotoIgnoredMargin, 175, kPhotoIgnoredMargin, 175, kPhotoIgnoredMargin, 175},
-{45, 45, 45, 45, 45, 45, 45, 45},
- {55, 55, 55, 55, 55, 55, 55, 55}
+{8, 8, kPhotoIgnoredMargin, 8, kPhotoIgnoredMargin, 8, kPhotoIgnoredMargin, 8},
+{36, 36, 36, 35, 35, 35, 35, 35},
+ {50, 50, 50, 50, 50, 50, 50, 50}
     };
 
     const unsigned long kAvoidDurationMs = 450;
@@ -114,7 +115,7 @@ namespace Constants
 
         constexpr float kChaseDrivePwmRatio = 0.52f;
         constexpr float kGoalDrivePwmRatio = 0.55f;
-        constexpr float kAvoidDrivePwmRatio = 0.75f;
+        constexpr float kAvoidDrivePwmRatio = 0.67f;
         constexpr unsigned long kStartupHoldMs = 500;
 
         // Heading hold used specifically during avoid-line maneuvers.
@@ -191,14 +192,15 @@ namespace Constants
     namespace Ajolote
     {
         // Ajolote copies the striker flow, but at lower speed for tighter control.
-        constexpr float kChaseDrivePwmRatio = 0.44f;
-        constexpr float kAvoidDrivePwmRatio = 0.58f;
+        constexpr float kChaseDrivePwmRatio = 0.50f;
+        constexpr float kAvoidDrivePwmRatio = 0.60f;
         constexpr float kHomeRecoveryDrivePwmRatio = 0.32f;
         constexpr float kGoalSearchDrivePwmRatio = 0.22f;
         constexpr unsigned long kStartupHoldMs = 1500;
 
-        // Tune this first during field testing so the robot only roams as far as you want.
-        constexpr uint32_t kHomeGoalMinAreaThreshold = 1800;
+        // Reuse the striker goal-size threshold so Ajolote only attacks while
+        // its own goal still looks safely large in the rear camera.
+        constexpr uint32_t kHomeGoalMinAreaThreshold = Striker::kGoalAimAreaThreshold;
         constexpr unsigned long kGoalCaptureTimeoutMs = 1500;
         constexpr unsigned long kGoalLostTimeoutMs = 450;
         constexpr float kHomeGoalAngleClampDeg = 40.0f;

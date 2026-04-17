@@ -7,6 +7,9 @@ Phototransistor photos(
     Constants::kPhotoRightSignalPin, Constants::kPhotoRightMuxS0Pin, Constants::kPhotoRightMuxS1Pin, Constants::kPhotoRightMuxS2Pin,
     Constants::kPhotoFrontSignalPin, Constants::kPhotoFrontMuxS0Pin, Constants::kPhotoFrontMuxS1Pin, Constants::kPhotoFrontMuxS2Pin);
 
+constexpr unsigned long kLateralMuxSwitchIntervalMs = 100;
+unsigned long lastLateralMuxSwitchMs = 0;
+
 void printPhotoPinMap() {
     Serial.println("Photo pin map:");
 
@@ -41,6 +44,14 @@ void printPhotoPinMap() {
     Serial.println(Constants::kPhotoFrontMuxS2Pin);
 }
 
+void updateLateralMuxSelection(unsigned long nowMs) {
+    if (lastLateralMuxSwitchMs == 0 ||
+        (nowMs - lastLateralMuxSwitchMs) >= kLateralMuxSwitchIntervalMs) {
+        photos.AdvanceLateralMuxCycle();
+        lastLateralMuxSwitchMs = nowMs;
+    }
+}
+
 void setup() {
     Serial.begin(115200);
 #if defined(CORE_TEENSY)
@@ -50,11 +61,15 @@ void setup() {
     photos.Initialize();
     photos.SetAllMargins(Constants::kPhotoMargins);
     photos.CaptureBaseline(Constants::kBaselineSamples, Constants::kBaselineDelayMs);
+    photos.SetAlternatingLateralMuxEnabled(true);
+    photos.AdvanceLateralMuxCycle();
+    lastLateralMuxSwitchMs = millis();
     printPhotoPinMap();
     Serial.println("Starting photo debug test...");
 }
 
 void loop() {
+    updateLateralMuxSelection(millis());
     photos.PhotoDebug();
     if (photos.HasLineOnSide(Side::Left)) {
         Serial.println("LINE on LEFT");
@@ -68,4 +83,3 @@ void loop() {
     Serial.println();
     delay(120);
 }
-

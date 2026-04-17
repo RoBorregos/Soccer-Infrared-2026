@@ -9,11 +9,11 @@ namespace {
 
 Robot robot;
 
-const float kHeadingKp = 2.5f;
+const float kHeadingKp = 1.5f;
 const float kHeadingKd = 0.10f;
-const float kMaxTurnPwm = 70.0f;
-const float kMinTurnPwm = 15.0f;
-const float kHeadingSettleBandDeg = 6.5f;
+const float kMaxTurnPwm = 65.0f;
+const float kMinTurnPwm = 40.0f;
+const float kHeadingSettleBandDeg = 5.5f;
 const float kDrivePwm = 0.60f * Constants::Motor::maxPWM;
 const unsigned long kDebugIntervalMs = 100;
 const unsigned long kBallTimeoutMs = 250;

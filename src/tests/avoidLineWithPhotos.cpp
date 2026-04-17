@@ -14,9 +14,12 @@ Phototransistor phototransistor_sensors(
 const float drivePwm = 0.55f * Constants::Motor::maxPWM;
 const float kHeadingKp = 1.5f;
 const float kHeadingKd = 0.10f;
-const float kMaxTurnPwm = 55.0f;
-const float kMinTurnPwm = 12.0f;
-const float kHeadingSettleBandDeg = 6.0f;
+const float kMaxTurnPwm = 65.0f;
+const float kMinTurnPwm = 40.0f;
+const float kHeadingSettleBandDeg = 5.5f;
+constexpr unsigned long kLateralMuxSwitchIntervalMs = 150;
+constexpr uint8_t kLiveBaselineSamples = 8;
+constexpr uint16_t kLiveBaselineDelayMs = 5;
 enum class RobotState { IDLE, AVOIDING_LINE };
 RobotState current_state = RobotState::IDLE;
 
@@ -25,6 +28,8 @@ double targetYaw = 0.0;
 unsigned long avoid_start_time = 0;
 int escapeAngle = 0;
 unsigned long last_debug_time = 0;
+unsigned long last_lateral_mux_switch_ms = 0;
+Side active_lateral_side = Side::Left;
 
 void printPhotoPinMap()
 {
@@ -77,6 +82,48 @@ void printTriggeredLineSides()
     }
 }
 
+const char *sideName(Side side)
+{
+    switch (side)
+    {
+    case Side::Right:
+        return "RIGHT";
+    case Side::Left:
+    default:
+        return "LEFT";
+    }
+}
+
+void retakeActiveLateralBaseline()
+{
+    phototransistor_sensors.CaptureSideBaseline(
+        active_lateral_side,
+        kLiveBaselineSamples,
+        kLiveBaselineDelayMs);
+    Serial.print("Retook ");
+    Serial.print(sideName(active_lateral_side));
+    Serial.println(" baseline");
+}
+
+void primeLateralMuxSelection()
+{
+    phototransistor_sensors.AdvanceLateralMuxCycle();
+    active_lateral_side = Side::Left;
+    retakeActiveLateralBaseline();
+    last_lateral_mux_switch_ms = millis();
+}
+
+void updateLateralMuxSelection(unsigned long nowMs)
+{
+    if ((nowMs - last_lateral_mux_switch_ms) >= kLateralMuxSwitchIntervalMs)
+    {
+        last_lateral_mux_switch_ms = nowMs;
+        phototransistor_sensors.AdvanceLateralMuxCycle();
+        active_lateral_side = (active_lateral_side == Side::Left) ? Side::Right : Side::Left;
+        retakeActiveLateralBaseline();
+    }
+}
+
 void setup()
 {
     Serial.begin(115200);
@@ -94,12 +141,15 @@ void setup()
     phototransistor_sensors.Initialize();
     phototransistor_sensors.SetAllMargins(Constants::kPhotoMargins);
     phototransistor_sensors.CaptureBaseline(Constants::kBaselineSamples, Constants::kBaselineDelayMs);
+    phototransistor_sensors.SetAlternatingLateralMuxEnabled(true);
+    primeLateralMuxSelection();
     printPhotoPinMap();
     Serial.println("avoidLineWithPhotos ready");
 }
 
 void loop()
 {
+    updateLateralMuxSelection(millis());
     const double yaw = robot.bno.GetBNOData();
     const double turnCommand = headingPD.calculate(targetYaw, yaw, true);
 

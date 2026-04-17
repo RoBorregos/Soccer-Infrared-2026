@@ -42,8 +42,13 @@ private:
     bool left_baseline_captured_ = false;
     bool right_baseline_captured_ = false;
     bool front_baseline_captured_ = false;
+    bool alternate_lateral_mux_enabled_ = false;
+    bool lateral_cycle_initialized_ = false;
+    bool lateral_switch_settle_pending_ = false;
+    Side active_lateral_side_ = Side::Left;
     SideData GetSideData(Side side);
     bool IsSideEnabled(Side side) const;
+    bool ShouldReadSideThisCycle(Side side) const;
     bool HasLineReading(const SideData &side_data) const;
     void ReadMuxChannels(Multiplexer &mux, uint16_t *target_array);
 
@@ -54,6 +59,8 @@ public:
 
     void Initialize();
     void SetIlluminationEnabled(bool enabled);
+    void SetAlternatingLateralMuxEnabled(bool enabled);
+    void AdvanceLateralMuxCycle();
     void ReadAllSensors(Side side);
     void CaptureSideBaseline(Side side, uint8_t samples, uint16_t delay_ms);
     void CaptureBaseline(uint8_t samples, uint16_t delay_ms);

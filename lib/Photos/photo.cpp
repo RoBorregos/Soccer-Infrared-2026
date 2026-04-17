@@ -56,6 +56,26 @@ bool Phototransistor::IsSideEnabled(Side side) const
     }
 }
 
+bool Phototransistor::ShouldReadSideThisCycle(Side side) const
+{
+    if (!IsSideEnabled(side))
+    {
+        return false;
+    }
+
+    if (!alternate_lateral_mux_enabled_ || side == Side::Front)
+    {
+        return true;
+    }
+
+    if (!IsSideEnabled(Side::Left) || !IsSideEnabled(Side::Right))
+    {
+        return true;
+    }
+
+    return side == active_lateral_side_;
+}
+
 bool Phototransistor::HasLineReading(const SideData &side_data) const // Main logic to determine if we have line on a side
 {
     for (uint8_t channel = 0; channel < Constants::kPhotoElements; channel++)
@@ -119,14 +139,57 @@ void Phototransistor::SetIlluminationEnabled(bool enabled)
     digitalWrite(Constants::kPhotoLedEnablePin, enabled ? HIGH : LOW);
 }
 
-void Phototransistor::ReadAllSensors(Side side) // Complete channel reading
+void Phototransistor::SetAlternatingLateralMuxEnabled(bool enabled)
 {
-    if (!IsSideEnabled(side))
+    alternate_lateral_mux_enabled_ =
+        enabled && IsSideEnabled(Side::Left) && IsSideEnabled(Side::Right);
+    lateral_cycle_initialized_ = false;
+    lateral_switch_settle_pending_ = false;
+    active_lateral_side_ = Side::Left;
+}
+
+void Phototransistor::AdvanceLateralMuxCycle()
+{
+    if (!alternate_lateral_mux_enabled_)
     {
         return;
     }
 
+    if (!lateral_cycle_initialized_)
+    {
+        lateral_cycle_initialized_ = true;
+        active_lateral_side_ = Side::Left;
+    }
+    else
+    {
+        active_lateral_side_ = (active_lateral_side_ == Side::Left) ? Side::Right : Side::Left;
+    }
+
+    lateral_switch_settle_pending_ = true;
+}
+
+void Phototransistor::ReadAllSensors(Side side) // Complete channel reading
+{
+    if (!ShouldReadSideThisCycle(side))
+    {
+        SideData side_data = GetSideData(side);
+        for (uint8_t channel = 0; channel < Constants::kPhotoElements; channel++)
+        {
+            side_data.readings[channel] = 0;
+        }
+        return;
+    }
+
     SideData side_data = GetSideData(side);
+    if (alternate_lateral_mux_enabled_ &&
+        lateral_switch_settle_pending_ &&
+        side == active_lateral_side_ &&
+        side != Side::Front)
+    {
+        delayMicroseconds(Constants::kPhotoLateralMuxSwitchSettleUs);
+        lateral_switch_settle_pending_ = false;
+    }
+
     ReadMuxChannels(*side_data.mux, side_data.readings);
 }
 
@@ -244,6 +307,19 @@ void Phototransistor::PhotoDebug()
     ReadMuxSide(Side::Right, right_readings);
     ReadMuxSide(Side::Front, front_readings);
 
+    Serial.println("Channel\tLEFT\tRIGHT\tFRONT");
+    for (uint8_t channel = 0; channel < Constants::kPhotoElements; channel++)
+    {
+        Serial.print(channel);
+        Serial.print('\t');
+        Serial.print(left_readings[channel]);
+        Serial.print('\t');
+        Serial.print(right_readings[channel]);
+        Serial.print('\t');
+        Serial.println(front_readings[channel]);
+    }
+
+    Serial.println();
     Serial.println("Side\tBase\tNow\tPeak\tDelta\tLine");
 
     auto print_side_summary = [](const char *name, const uint16_t *baseline, const uint16_t *margins, const uint16_t *readings, bool enabled)

@@ -1,9 +1,10 @@
 #include <Arduino.h>
 #include <math.h>
-#include "photo.h"
 #include "constants.h"
-#include "robot.h"
+#include "IMU.h"
 #include "PID.h"
+#include "photo.h"
+#include "robot.h"
 #include "pixyLib.h"
 #include "DriveHelpers.h"
 
@@ -12,6 +13,7 @@
 namespace {
 
 Robot robot;
+IMUDriver ajoloteImu(&IMU, IMU_ADDRESS);
 Phototransistor phototransistor_sensors(
     Constants::kPhotoLeftSignalPin, Constants::kPhotoLeftMuxS0Pin, Constants::kPhotoLeftMuxS1Pin, Constants::kPhotoLeftMuxS2Pin,
     Constants::kPhotoRightSignalPin, Constants::kPhotoRightMuxS0Pin, Constants::kPhotoRightMuxS1Pin, Constants::kPhotoRightMuxS2Pin,
@@ -21,7 +23,8 @@ Phototransistor phototransistor_sensors(
 enum class RobotState {
     WAITING_FOR_HOME_GOAL,
     RECOVERING_HOME_GOAL,
-    CHASING_BALL,
+    GET_BEHIND_BALL,
+    CARRY_BALL_FORWARD,
     AVOIDING_LINE
 };
 
@@ -42,41 +45,57 @@ struct LineState {
 
 RobotState currentState = RobotState::WAITING_FOR_HOME_GOAL;
 
-const float kChaseDrivePwm = Constants::Ajolote::kChaseDrivePwmRatio * Constants::Motor::maxPWM;
+const float kChaseDrivePwm = 0.46f * Constants::Motor::maxPWM;
+const float kBehindBallDrivePwm = 0.40f * Constants::Motor::maxPWM;
 const float kAvoidDrivePwm = Constants::Ajolote::kAvoidDrivePwmRatio * Constants::Motor::maxPWM;
+const float kCarryDrivePwm = Constants::Ajolote::kChaseDrivePwmRatio * Constants::Motor::maxPWM;
 const float kHomeRecoveryDrivePwm = Constants::Ajolote::kHomeRecoveryDrivePwmRatio * Constants::Motor::maxPWM;
 const float kGoalSearchDrivePwm = Constants::Ajolote::kGoalSearchDrivePwmRatio * Constants::Motor::maxPWM;
 constexpr unsigned long kDebugPrintIntervalMs = 120;
+constexpr float kHeadingKp = 1.5f;
+constexpr float kHeadingKd = 0.10f;
+constexpr float kMaxTurnPwm = 65.0f;
+constexpr float kMinTurnPwm = 40.0f;
+constexpr float kHeadingSettleBandDeg = 5.5f;
+constexpr unsigned long kPIDLookForBallTimeoutMs = 250;
+constexpr unsigned long kBallFrontConfirmMs = 180;
+constexpr float kAjoloteBehindBallApproachGain = 0.75f;
+constexpr float kAjoloteBehindBallApproachClampDeg = 65.0f;
+constexpr float kAjoloteBehindBallOrbitDeg = 110.0f;
 
-PID chaseHeadingPD(
-    Constants::Striker::kHeadingKp,
+PID orbitHeadingPD(
+    kHeadingKp,
     0.0f,
-    Constants::Striker::kHeadingKd,
-    Constants::Striker::kMaxTurnPwm,
-    Constants::Striker::kMinTurnPwm,
-    Constants::Striker::kHeadingSettleBandDeg
+    kHeadingKd,
+    kMaxTurnPwm,
+    kMinTurnPwm,
+    kHeadingSettleBandDeg
 );
 
 PID avoidHeadingPD(
-    Constants::Striker::kAvoidHeadingKp,
+    kHeadingKp,
     0.0f,
-    Constants::Striker::kAvoidHeadingKd,
-    Constants::Striker::kAvoidMaxTurnPwm,
-    Constants::Striker::kAvoidMinTurnPwm,
-    Constants::Striker::kAvoidHeadingSettleBandDeg
+    kHeadingKd,
+    kMaxTurnPwm,
+    kMinTurnPwm,
+    kHeadingSettleBandDeg
 );
 
 double startupYaw = 0.0;
 unsigned long motorsEnableMs = 0;
 unsigned long lastHomeGoalSeenTime = 0;
 unsigned long lastBallReadMs = 0;
+unsigned long ballFrontStartMs = 0;
 unsigned long avoidStartTime = 0;
 unsigned long lastDebugPrintMs = 0;
+unsigned long lastDebugHeaderMs = 0;
 uint16_t homeGoalSignature = 0;
-bool pixyAvailable = false;
+bool imuAvailable = false;
+bool pixyAvailable = true;
 float latestBallAngle = 0.0f;
+float latestRawBallTheta = 0.0f;
 float filteredRecoveryAngle = 0.0f;
-float lastHomeGoalAngle = 0.0f;
+float lastHomeGoalDriveAngle = 0.0f;
 int escapeAngle = 0;
 AvoidSide activeAvoidSide = AvoidSide::NONE;
 
@@ -85,6 +104,36 @@ AvoidSide activeAvoidSide = AvoidSide::NONE;
 bool hasFreshHomeGoalTrack(unsigned long nowMs) {
     return homeGoalSignature != 0 &&
            (nowMs - lastHomeGoalSeenTime) <= Constants::Ajolote::kGoalLostTimeoutMs;
+}
+
+bool isBallInFrontFromRawTheta(float rawTheta) {
+    const float frontError = DriveHelpers::wrapAngle180(180.0f - rawTheta);
+    return fabsf(frontError) <= Constants::Striker::kBallFrontToleranceDeg;
+}
+
+float getBehindBallChaseAngle(float ballAngle) {
+    const float absAngle = fabsf(ballAngle);
+
+    if (absAngle <= Constants::Striker::kBallFrontToleranceDeg) {
+        return ballAngle;
+    }
+
+    if (absAngle > 90.0f) {
+        const float orbitDirection = (ballAngle >= 0.0f) ? 1.0f : -1.0f;
+        return orbitDirection * kAjoloteBehindBallOrbitDeg;
+    }
+
+    const float approachOffset = DriveHelpers::clampSymmetric(
+        ballAngle * kAjoloteBehindBallApproachGain,
+        kAjoloteBehindBallApproachClampDeg);
+    return DriveHelpers::wrapAngle180(ballAngle + approachOffset);
+}
+
+float getHomeGoalDriveAngle(const PixyBlock& homeGoal, float deadbandDeg) {
+    return pixyGetGoalDriveAngle(homeGoal,
+                                 Constants::Ajolote::kHomeGoalAngleClampDeg,
+                                 Constants::Goalie::kGoalTrackDirectionSign,
+                                 deadbandDeg);
 }
 
 const char* boolText(bool value) {
@@ -111,8 +160,10 @@ const char* stateName(RobotState state) {
             return "waiting_goal";
         case RobotState::RECOVERING_HOME_GOAL:
             return "recover_goal";
-        case RobotState::CHASING_BALL:
-            return "chase_ball";
+        case RobotState::GET_BEHIND_BALL:
+            return "get_behind";
+        case RobotState::CARRY_BALL_FORWARD:
+            return "carry_ball";
         case RobotState::AVOIDING_LINE:
             return "avoid_line";
         default:
@@ -141,51 +192,62 @@ LineState readLineState() {
 }
 
 void printDebugStatus(unsigned long nowMs,
+                      double currentYaw,
                       float ballAngle,
+                      float chaseAngle,
                       const PixyBlock& homeGoal,
-                      bool homeGoalCloseEnough) {
+                      bool homeGoalCloseEnough,
+                      AvoidSide avoidSide,
+                      bool ballInFront) {
     if (nowMs - lastDebugPrintMs < kDebugPrintIntervalMs) {
         return;
     }
 
+    if (lastDebugHeaderMs == 0 || nowMs - lastDebugHeaderMs >= 2000) {
+        Serial.println("state\tyaw\tball\tchase\tgoal\tgoal_big\tgoal_ang\tgoal_sz\tline_side\tfront");
+        lastDebugHeaderMs = nowMs;
+    }
+
     lastDebugPrintMs = nowMs;
-    Serial.print("state=");
     Serial.print(stateName(currentState));
-    Serial.print(" goal_locked=");
-    Serial.print(boolText(homeGoalSignature != 0));
-    Serial.print(" goal_fresh=");
-    Serial.print(boolText(hasFreshHomeGoalTrack(nowMs)));
-    Serial.print(" goal_big_enough=");
-    Serial.print(boolText(homeGoalCloseEnough));
-    Serial.print(" goal_area=");
-    Serial.print(homeGoal.area);
-    Serial.print(" goal_angle=");
-    Serial.print(homeGoal.angle, 1);
-    Serial.print(" ball_angle=");
+    Serial.print('\t');
+    Serial.print(currentYaw, 1);
+    Serial.print('\t');
     Serial.print(ballAngle, 1);
-    Serial.print(" avoiding_line=");
-    Serial.print(boolText(activeAvoidSide != AvoidSide::NONE));
-    Serial.print(" line_side=");
-    Serial.println(avoidSideName(activeAvoidSide));
+    Serial.print('\t');
+    Serial.print(chaseAngle, 1);
+    Serial.print('\t');
+    Serial.print(boolText(hasFreshHomeGoalTrack(nowMs) && homeGoal.found));
+    Serial.print('\t');
+    Serial.print(boolText(homeGoalCloseEnough));
+    Serial.print('\t');
+    Serial.print(homeGoal.angle, 1);
+    Serial.print('\t');
+    Serial.print(homeGoal.area);
+    Serial.print('\t');
+    Serial.print(avoidSideName(avoidSide));
+    Serial.print('\t');
+    Serial.println(boolText(ballInFront));
 }
 
 void updateBallAngle() {
-    while (HWSERIAL.available() > 0) {
+    if (HWSERIAL.available() > 0) {
         String incomingData = HWSERIAL.readStringUntil('\n');
         incomingData.trim();
 
-        if (incomingData.length() == 0) {
-            continue;
+        if (incomingData.length() > 0) {
+            if (incomingData.startsWith("a ")) {
+                const float incomingAngle = incomingData.substring(2).toFloat();
+                latestRawBallTheta = incomingAngle;
+                latestBallAngle = DriveHelpers::wrapAngle180(180.0f - incomingAngle);
+                lastBallReadMs = millis();
+            } else if (!incomingData.startsWith("r ")) {
+                const float incomingAngle = incomingData.toFloat();
+                latestRawBallTheta = incomingAngle;
+                latestBallAngle = DriveHelpers::wrapAngle180(180.0f - incomingAngle);
+                lastBallReadMs = millis();
+            }
         }
-
-        if (incomingData.startsWith("a ")) {
-            incomingData = incomingData.substring(2);
-        }
-
-        // Mirror the UART ball angle exactly like Colibri so Ajolote keeps the
-        // same full-angle chase behavior while using the heading PID the whole time.
-        latestBallAngle = DriveHelpers::wrapAngle180(180.0f - incomingData.toFloat());
-        lastBallReadMs = millis();
     }
 }
 
@@ -201,19 +263,11 @@ bool tryLockHomeGoal(unsigned long timeoutMs) {
                                  &lastHomeGoalSeenTime);
 }
 
-float getHomeGoalDriveAngle(const PixyBlock& homeGoal, float deadbandDeg) {
-    return pixyGetGoalDriveAngle(homeGoal,
-                                 Constants::Ajolote::kHomeGoalAngleClampDeg,
-                                 Constants::Goalie::kGoalTrackDirectionSign,
-                                 deadbandDeg);
-}
-
 void recoverHomePosition(const PixyBlock& homeGoal, double turnCommand) {
     if (homeGoal.found) {
-        // Ajolote keeps the locked home goal as the only retreat reference.
         const float goalAngle = getHomeGoalDriveAngle(homeGoal,
                                                       Constants::Ajolote::kHomeGoalCenterDeadbandDeg);
-        lastHomeGoalAngle = getHomeGoalDriveAngle(homeGoal, 0.0f);
+        lastHomeGoalDriveAngle = getHomeGoalDriveAngle(homeGoal, 0.0f);
         filteredRecoveryAngle = DriveHelpers::smoothAngleChange(
             filteredRecoveryAngle,
             goalAngle,
@@ -224,12 +278,12 @@ void recoverHomePosition(const PixyBlock& homeGoal, double turnCommand) {
 
     filteredRecoveryAngle = 0.0f;
 
-    if (lastHomeGoalAngle > 0.0f) {
+    if (lastHomeGoalDriveAngle > 0.0f) {
         robot.motors.move(90.0f, kGoalSearchDrivePwm, turnCommand);
         return;
     }
 
-    if (lastHomeGoalAngle < 0.0f) {
+    if (lastHomeGoalDriveAngle < 0.0f) {
         robot.motors.move(270.0f, kGoalSearchDrivePwm, turnCommand);
         return;
     }
@@ -259,19 +313,31 @@ void setup() {
     phototransistor_sensors.Initialize();
     phototransistor_sensors.SetAllMargins(Constants::kPhotoMargins);
     phototransistor_sensors.CaptureBaseline(Constants::kBaselineSamples, Constants::kBaselineDelayMs);
+    phototransistor_sensors.SetAlternatingLateralMuxEnabled(true);
 
     robot.begin();
     robot.motors.stop();
-    delay(2000);
+    delay(500);
+
+    const int imuStatus = ajoloteImu.begin(calib);
+    if (imuStatus == 0) {
+        imuAvailable = true;
+        Serial.println("[SUCCESS] MPU6500 IMU connected!");
+    } else {
+        imuAvailable = false;
+        Serial.print("ERROR: IMU not found. Error code: ");
+        Serial.println(imuStatus);
+        Serial.println("Continuing with frozen IMU heading.");
+    }
 
     HWSERIAL.begin(9600);
     HWSERIAL.setTimeout(5);
 
-    // Lock onto SIG2 or SIG3 once and never switch goals after boot.
     tryLockHomeGoal(Constants::Ajolote::kGoalCaptureTimeoutMs);
 
-    startupYaw = robot.bno.GetBNOData();
-    chaseHeadingPD.reset();
+    startupYaw = imuAvailable ? ajoloteImu.getAngle() : 0.0;
+    // startupYaw = robot.bno.GetBNOData();
+    orbitHeadingPD.reset();
     avoidHeadingPD.reset();
     motorsEnableMs = millis() + Constants::Ajolote::kStartupHoldMs;
     Serial.println("Ajolote debug ready");
@@ -285,15 +351,44 @@ void loop() {
         return;
     }
 
-    const double currentYaw = robot.bno.GetBNOData();
-    const double chaseTurnCommand = chaseHeadingPD.calculate(startupYaw, currentYaw, true);
+    phototransistor_sensors.AdvanceLateralMuxCycle();
+    updateBallAngle();
+    const bool hasBall = (nowMs - lastBallReadMs) <= kPIDLookForBallTimeoutMs;
+    const float chaseAngle = hasBall ? latestBallAngle : 0.0f;
+    const double currentYaw = imuAvailable ? ajoloteImu.getAngle() : startupYaw;
+    // const double currentYaw = robot.bno.GetBNOData();
+
+    PixyBlock homeGoal = pixyNoGoalBlock();
+    if (pixyAvailable) {
+        if (homeGoalSignature == 0) {
+            tryLockHomeGoal(0);
+        }
+
+        homeGoal = pixyReadLockedGoal(homeGoalSignature);
+        if (homeGoal.found) {
+            lastHomeGoalSeenTime = nowMs;
+            lastHomeGoalDriveAngle = getHomeGoalDriveAngle(homeGoal, 0.0f);
+        }
+    }
+
+    const bool homeGoalCloseEnough = pixyAvailable &&
+        pixyIsGoalCloseEnough(homeGoal, Constants::Ajolote::kHomeGoalMinAreaThreshold);
+    const bool needsHomeGoalRecovery = pixyAvailable &&
+        (!homeGoal.found || !homeGoalCloseEnough);
+    const double orbitTurnCommand = orbitHeadingPD.calculate(startupYaw, currentYaw, true);
     const double avoidTurnCommand = avoidHeadingPD.calculate(startupYaw, currentYaw, true);
 
     if (currentState == RobotState::AVOIDING_LINE) {
-        const PixyBlock emptyGoal = pixyNoGoalBlock();
-        printDebugStatus(nowMs, latestBallAngle, emptyGoal, false);
+        printDebugStatus(nowMs,
+                         currentYaw,
+                         latestBallAngle,
+                         chaseAngle,
+                         homeGoal,
+                         homeGoalCloseEnough,
+                         activeAvoidSide,
+                         isBallInFrontFromRawTheta(latestRawBallTheta));
         if (nowMs - avoidStartTime >= Constants::kAvoidDurationMs) {
-            currentState = RobotState::CHASING_BALL;
+            currentState = RobotState::GET_BEHIND_BALL;
             activeAvoidSide = AvoidSide::NONE;
         } else {
             robot.motors.move(static_cast<float>(escapeAngle), kAvoidDrivePwm, avoidTurnCommand);
@@ -307,55 +402,105 @@ void loop() {
         avoidStartTime = nowMs;
         currentState = RobotState::AVOIDING_LINE;
         activeAvoidSide = lineState.detectedSide;
-        const PixyBlock emptyGoal = pixyNoGoalBlock();
-        printDebugStatus(nowMs, latestBallAngle, emptyGoal, false);
+        printDebugStatus(nowMs,
+                         currentYaw,
+                         latestBallAngle,
+                         chaseAngle,
+                         homeGoal,
+                         homeGoalCloseEnough,
+                         activeAvoidSide,
+                         isBallInFrontFromRawTheta(latestRawBallTheta));
         robot.motors.move(static_cast<float>(escapeAngle), kAvoidDrivePwm, avoidTurnCommand);
         return;
     }
 
     activeAvoidSide = AvoidSide::NONE;
-    updateBallAngle();
 
     if (pixyAvailable && !tryLockHomeGoal(0)) {
+        ballFrontStartMs = 0;
         currentState = RobotState::WAITING_FOR_HOME_GOAL;
-        const PixyBlock emptyGoal = pixyNoGoalBlock();
-        printDebugStatus(nowMs, latestBallAngle, emptyGoal, false);
-        robot.motors.move(0.0f, 0.0f, chaseTurnCommand);
+        printDebugStatus(nowMs,
+                         currentYaw,
+                         latestBallAngle,
+                         chaseAngle,
+                         homeGoal,
+                         false,
+                         activeAvoidSide,
+                         false);
+        robot.motors.move(0.0f, 0.0f, orbitTurnCommand);
         return;
     }
 
-    PixyBlock homeGoal = pixyNoGoalBlock();
-    if (pixyAvailable) {
-        homeGoal = pixyReadLockedGoal(homeGoalSignature);
-        if (homeGoal.found) {
-            lastHomeGoalSeenTime = nowMs;
-            lastHomeGoalAngle = getHomeGoalDriveAngle(homeGoal, 0.0f);
-        }
-    }
-
-    const bool homeGoalCloseEnough = pixyAvailable &&
-        pixyIsGoalCloseEnough(homeGoal, Constants::Ajolote::kHomeGoalMinAreaThreshold);
-    const bool needsHomeGoalRecovery = pixyAvailable &&
-        (!hasFreshHomeGoalTrack(nowMs) || (homeGoal.found && !homeGoalCloseEnough));
-
-    // Goal safety always wins over ball attack so Ajolote does not wander too far.
     if (needsHomeGoalRecovery) {
+        ballFrontStartMs = 0;
         currentState = RobotState::RECOVERING_HOME_GOAL;
-        printDebugStatus(nowMs, latestBallAngle, homeGoal, homeGoalCloseEnough);
-        recoverHomePosition(homeGoal, chaseTurnCommand);
+        printDebugStatus(nowMs,
+                         currentYaw,
+                         latestBallAngle,
+                         chaseAngle,
+                         homeGoal,
+                         homeGoalCloseEnough,
+                         activeAvoidSide,
+                         false);
+        recoverHomePosition(homeGoal, orbitTurnCommand);
         return;
     }
 
     filteredRecoveryAngle = 0.0f;
 
-    if (nowMs - lastBallReadMs > Constants::kIRFreshDataTimeoutMs) {
-        currentState = RobotState::CHASING_BALL;
-        printDebugStatus(nowMs, latestBallAngle, homeGoal, homeGoalCloseEnough);
-        robot.motors.move(0.0f, 0.0f, chaseTurnCommand);
+    if (!hasBall) {
+        ballFrontStartMs = 0;
+        currentState = RobotState::GET_BEHIND_BALL;
+        printDebugStatus(nowMs,
+                         currentYaw,
+                         latestBallAngle,
+                         chaseAngle,
+                         homeGoal,
+                         homeGoalCloseEnough,
+                         activeAvoidSide,
+                         false);
+        robot.motors.move(0.0f, 0.0f, orbitTurnCommand);
         return;
     }
 
-    currentState = RobotState::CHASING_BALL;
-    printDebugStatus(nowMs, latestBallAngle, homeGoal, homeGoalCloseEnough);
-    robot.motors.move(latestBallAngle, kChaseDrivePwm, chaseTurnCommand);
+    const float ballAngle = chaseAngle;
+    const float chaseDriveAngle = getBehindBallChaseAngle(ballAngle);
+    const bool ballInFront = isBallInFrontFromRawTheta(latestRawBallTheta);
+
+    if (ballInFront) {
+        if (ballFrontStartMs == 0) {
+            ballFrontStartMs = nowMs;
+        }
+    } else {
+        ballFrontStartMs = 0;
+    }
+
+    const bool hasConfirmedFrontBall =
+        ballFrontStartMs != 0 && (nowMs - ballFrontStartMs) >= kBallFrontConfirmMs;
+    const float chaseDrivePwm = (fabsf(ballAngle) > 90.0f) ? kBehindBallDrivePwm : kChaseDrivePwm;
+
+    if (hasConfirmedFrontBall) {
+        currentState = RobotState::CARRY_BALL_FORWARD;
+        printDebugStatus(nowMs,
+                         currentYaw,
+                         ballAngle,
+                         0.0f,
+                         homeGoal,
+                         homeGoalCloseEnough,
+                         activeAvoidSide,
+                         ballInFront);
+        robot.motors.move(0.0f, kCarryDrivePwm, orbitTurnCommand);
+        return;
+    }
+
+    currentState = RobotState::GET_BEHIND_BALL;
+    printDebugStatus(nowMs,
+                     currentYaw,
+                     ballAngle,
+                     chaseDriveAngle,
+                     homeGoal,
+                     homeGoalCloseEnough,
+                     activeAvoidSide,
+                     ballInFront);
+    robot.motors.move(chaseDriveAngle, chaseDrivePwm, orbitTurnCommand);
 }
