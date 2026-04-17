@@ -41,34 +41,31 @@ struct LineState {
 
 RobotState currentState = RobotState::GET_BEHIND_BALL;
 
-const float kChaseDrivePwm = Constants::Striker::kChaseDrivePwmRatio * Constants::Motor::maxPWM;
+const float kChaseDrivePwm = 0.46f * Constants::Motor::maxPWM;
+const float kBehindBallDrivePwm = 0.40f * Constants::Motor::maxPWM;
 const float kAvoidDrivePwm = Constants::Striker::kAvoidDrivePwmRatio * Constants::Motor::maxPWM;
-const float kCarryDrivePwm = Constants::Striker::kGoalDrivePwmRatio * Constants::Motor::maxPWM;
+const float kCarryDrivePwm = 0.50f * Constants::Motor::maxPWM;
 constexpr unsigned long kDebugPrintIntervalMs = 120;
-constexpr float kPIDLookForBallHeadingKp = 2.5f;
-constexpr float kPIDLookForBallHeadingKd = 0.10f;
-constexpr float kPIDLookForBallMaxTurnPwm = 70.0f;
-constexpr float kPIDLookForBallMinTurnPwm = 15.0f;
-constexpr float kPIDLookForBallHeadingSettleBandDeg = 6.5f;
-const float kPIDLookForBallDrivePwm = 0.60f * Constants::Motor::maxPWM;
+constexpr bool kEnableLineAvoidance = true;
+// Match PIDStickIntoOneDirection2 exactly for heading hold while Colibri chases.
+constexpr float kHeadingKp = 1.5f;
+constexpr float kHeadingKd = 0.10f;
+constexpr float kMaxTurnPwm = 55.0f;
+constexpr float kMinTurnPwm = 12.0f;
+constexpr float kHeadingSettleBandDeg = 6.0f;
 constexpr unsigned long kPIDLookForBallTimeoutMs = 250;
+constexpr unsigned long kBallFrontConfirmMs = 180;
+constexpr float kColibriBehindBallApproachGain = 0.75f;
+constexpr float kColibriBehindBallApproachClampDeg = 65.0f;
+constexpr float kColibriBehindBallOrbitDeg = 110.0f;
 
 PID orbitHeadingPD(
-    kPIDLookForBallHeadingKp,
+    kHeadingKp,
     0.0f,
-    kPIDLookForBallHeadingKd,
-    kPIDLookForBallMinTurnPwm,
-    kPIDLookForBallMaxTurnPwm,
-    kPIDLookForBallHeadingSettleBandDeg
-);
-
-PID carryHeadingPD(
-    Constants::Striker::kHeadingKp,
-    0.0f,
-    Constants::Striker::kHeadingKd,
-    Constants::Striker::kMinTurnPwm,
-    Constants::Striker::kMaxTurnPwm,
-    Constants::Striker::kHeadingSettleBandDeg
+    kHeadingKd,
+    kMaxTurnPwm,
+    kMinTurnPwm,
+    kHeadingSettleBandDeg
 );
 
 PID avoidHeadingPD(
@@ -84,12 +81,14 @@ double startupYaw = 0.0;
 unsigned long motorsEnableMs = 0;
 unsigned long lastGoalSeenTime = 0;
 unsigned long lastBallReadMs = 0;
+unsigned long ballFrontStartMs = 0;
 unsigned long avoidStartTime = 0;
 unsigned long lastDebugPrintMs = 0;
 unsigned long lastDebugHeaderMs = 0;
 uint16_t opponentGoalSignature = 0;
 bool pixyAvailable = false;
 float latestBallAngle = 0.0f;
+float latestRawBallTheta = 0.0f;
 int escapeAngle = 0;
 AvoidSide activeAvoidSide = AvoidSide::NONE;
 
@@ -100,8 +99,34 @@ bool hasFreshGoalTrack(unsigned long nowMs) {
            (nowMs - lastGoalSeenTime) <= Constants::Striker::kGoalLostTimeoutMs;
 }
 
-bool isBallInFront(float ballAngle) {
-    return fabsf(ballAngle) <= Constants::Striker::kBallFrontToleranceDeg;
+bool isBallInFrontFromRawTheta(float rawTheta) {
+    const float frontError = DriveHelpers::wrapAngle180(180.0f - rawTheta);
+    return fabsf(frontError) <= Constants::Striker::kBallFrontToleranceDeg;
+}
+
+float getBehindBallChaseAngle(float ballAngle) {
+    const float absAngle = fabsf(ballAngle);
+
+    if (absAngle <= Constants::Striker::kBallFrontToleranceDeg) {
+        return ballAngle;
+    }
+
+    if (absAngle > 90.0f) {
+        const float orbitDirection = (ballAngle >= 0.0f) ? 1.0f : -1.0f;
+        return orbitDirection * kColibriBehindBallOrbitDeg;
+    }
+
+    const float approachOffset = DriveHelpers::clampSymmetric(
+        ballAngle * kColibriBehindBallApproachGain,
+        kColibriBehindBallApproachClampDeg);
+    return DriveHelpers::wrapAngle180(ballAngle + approachOffset);
+}
+
+float getGoalCarryDriveAngle(const PixyBlock& goalBlock) {
+    return pixyGetGoalDriveAngle(goalBlock,
+                                 Constants::Striker::kGoalAngleClampDeg,
+                                 1.0f,
+                                 Constants::Striker::kGoalHeadingDeadbandDeg);
 }
 
 float wrapAngle180(float angleDegrees) {
@@ -197,14 +222,16 @@ void updateBallAngle() {
 
         if (incomingData.length() > 0) {
             if (incomingData.startsWith("a ")) {
-                // Match communicationWithTeensy: read the theta text exactly as it
-                // arrives from Serial3 and feed that directly into the chase logic.
+                // Match PIDLookForBall exactly: mirror the UART theta and keep it
+                // normalized in the full signed chase range.
                 const float incomingAngle = incomingData.substring(2).toFloat();
-                latestBallAngle = incomingAngle;
+                latestRawBallTheta = incomingAngle;
+                latestBallAngle = wrapAngle180(180.0f - incomingAngle);
                 lastBallReadMs = millis();
             } else if (!incomingData.startsWith("r ")) {
                 const float incomingAngle = incomingData.toFloat();
-                latestBallAngle = incomingAngle;
+                latestRawBallTheta = incomingAngle;
+                latestBallAngle = wrapAngle180(180.0f - incomingAngle);
                 lastBallReadMs = millis();
             }
         }
@@ -227,13 +254,11 @@ void setup() {
         Serial.print("ERROR: Pixy not found. Error code: ");
         Serial.println(pixyStatus);
         Serial.println("Check: 1. PCB traces, 2. swapped SCL/SDA wires, 3. PixyMon I2C mode");
-        while (true) {
-        }
+        Serial.println("Continuing without Pixy goal tracking.");
     }
 
     phototransistor_sensors.Initialize();
     phototransistor_sensors.SetAllMargins(Constants::kPhotoMargins);
-    delay(1000);
     phototransistor_sensors.CaptureBaseline(Constants::kBaselineSamples, Constants::kBaselineDelayMs);
 
     robot.begin();
@@ -241,7 +266,6 @@ void setup() {
     delay(2000);
 
     HWSERIAL.begin(9600);
-    HWSERIAL.setTimeout(5);
 
     if (pixyAvailable) {
         pixyLockGoalSignature(opponentGoalSignature,
@@ -253,7 +277,6 @@ void setup() {
 
     startupYaw = robot.bno.GetBNOData();
     orbitHeadingPD.reset();
-    carryHeadingPD.reset();
     avoidHeadingPD.reset();
     motorsEnableMs = millis() + Constants::Striker::kStartupHoldMs;
     Serial.println("Colibri debug ready");
@@ -269,6 +292,8 @@ void loop() {
 
     updateBallAngle();
     const bool hasBall = (millis() - lastBallReadMs) <= kPIDLookForBallTimeoutMs;
+    // Keep the chase-angle handoff identical to PIDLookForBall: use the latest
+    // mirrored ball angle directly whenever the UART data is still fresh.
     const float chaseAngle = hasBall ? latestBallAngle : 0.0f;
 
     const double currentYaw = robot.bno.GetBNOData();
@@ -291,7 +316,7 @@ void loop() {
 
     const double avoidTurnCommand = avoidHeadingPD.calculate(startupYaw, currentYaw, true);
 
-    if (currentState == RobotState::AVOIDING_LINE) {
+    if (kEnableLineAvoidance && currentState == RobotState::AVOIDING_LINE) {
         printDebugStatus(nowMs,
                          currentYaw,
                          latestBallAngle,
@@ -300,7 +325,7 @@ void loop() {
                          opponentGoal.angle,
                          opponentGoal.area,
                          activeAvoidSide,
-                         isBallInFront(latestBallAngle));
+                         isBallInFrontFromRawTheta(latestRawBallTheta));
         if (nowMs - avoidStartTime >= Constants::kAvoidDurationMs) {
             currentState = RobotState::GET_BEHIND_BALL;
             activeAvoidSide = AvoidSide::NONE;
@@ -310,23 +335,25 @@ void loop() {
         return;
     }
 
-    const LineState lineState = readLineState();
-    if (lineState.escapeAngle != -1) {
-        escapeAngle = lineState.escapeAngle;
-        avoidStartTime = nowMs;
-        currentState = RobotState::AVOIDING_LINE;
-        activeAvoidSide = lineState.detectedSide;
-        printDebugStatus(nowMs,
-                         currentYaw,
-                         latestBallAngle,
-                         chaseAngle,
-                         opponentGoal.found,
-                         opponentGoal.angle,
-                         opponentGoal.area,
-                         activeAvoidSide,
-                         isBallInFront(latestBallAngle));
-        robot.motors.move(static_cast<float>(escapeAngle), kAvoidDrivePwm, avoidTurnCommand);
-        return;
+    if (kEnableLineAvoidance) {
+        const LineState lineState = readLineState();
+        if (lineState.escapeAngle != -1) {
+            escapeAngle = lineState.escapeAngle;
+            avoidStartTime = nowMs;
+            currentState = RobotState::AVOIDING_LINE;
+            activeAvoidSide = lineState.detectedSide;
+            printDebugStatus(nowMs,
+                             currentYaw,
+                             latestBallAngle,
+                             chaseAngle,
+                             opponentGoal.found,
+                             opponentGoal.angle,
+                             opponentGoal.area,
+                             activeAvoidSide,
+                             isBallInFrontFromRawTheta(latestRawBallTheta));
+            robot.motors.move(static_cast<float>(escapeAngle), kAvoidDrivePwm, avoidTurnCommand);
+            return;
+        }
     }
 
     activeAvoidSide = AvoidSide::NONE;
@@ -338,32 +365,41 @@ void loop() {
         return;
     }
 
-    const float ballAngle = latestBallAngle;
-    const bool goalCloseEnough = pixyAvailable &&
-                                 pixyIsGoalCloseEnough(opponentGoal, Constants::Striker::kGoalAimAreaThreshold);
-    const bool ballInFront = isBallInFront(ballAngle);
-    const bool canCarryToGoal = goalCloseEnough && ballInFront;
-    double headingTarget = startupYaw;
+    const float ballAngle = chaseAngle;
+    const float chaseDriveAngle = getBehindBallChaseAngle(ballAngle);
+    const bool ballInFront = isBallInFrontFromRawTheta(latestRawBallTheta);
 
-    if (canCarryToGoal) {
-        headingTarget = pixyGetHeadingTargetForGoal(opponentGoal,
-                                                    currentYaw,
-                                                    Constants::Striker::kGoalAimAreaThreshold,
-                                                    Constants::Striker::kGoalHeadingDeadbandDeg);
+    if (ballInFront) {
+        if (ballFrontStartMs == 0) {
+            ballFrontStartMs = nowMs;
+        }
+    } else {
+        ballFrontStartMs = 0;
     }
 
-    const double carryTurnCommand = carryHeadingPD.calculate(headingTarget, currentYaw, true);
+    const bool hasConfirmedFrontBall =
+        ballFrontStartMs != 0 && (nowMs - ballFrontStartMs) >= kBallFrontConfirmMs;
+    const bool canCarryToGoal =
+        pixyAvailable &&
+        hasFreshGoalTrack(nowMs) &&
+        opponentGoal.found &&
+        hasConfirmedFrontBall;
     const double orbitTurnCommand = orbitHeadingPD.calculate(startupYaw, currentYaw, true);
+    const float carryDriveAngle = getGoalCarryDriveAngle(opponentGoal);
+    const float chaseDrivePwm = (fabsf(ballAngle) > 90.0f) ? kBehindBallDrivePwm : kChaseDrivePwm;
 
     if (canCarryToGoal) {
         currentState = RobotState::CARRY_BALL_FORWARD;
-        printDebugStatus(nowMs, currentYaw, ballAngle, ballAngle, opponentGoal.found, opponentGoal.angle, opponentGoal.area, activeAvoidSide, ballInFront);
-        robot.motors.move(0.0f, kCarryDrivePwm, carryTurnCommand);
+        // Once the ball is in front, Pixy only nudges the translation angle
+        // toward the goal instead of taking over the robot heading PID.
+        printDebugStatus(nowMs, currentYaw, ballAngle, carryDriveAngle, opponentGoal.found, opponentGoal.angle, opponentGoal.area, activeAvoidSide, ballInFront);
+        robot.motors.move(carryDriveAngle, kCarryDrivePwm, orbitTurnCommand);
         return;
     }
 
     currentState = RobotState::GET_BEHIND_BALL;
-    // Keep Colibri's normal chase orbit identical to the PIDLookForBall test.
-    printDebugStatus(nowMs, currentYaw, ballAngle, ballAngle, opponentGoal.found, opponentGoal.angle, opponentGoal.area, activeAvoidSide, ballInFront);
-    robot.motors.move(ballAngle, kPIDLookForBallDrivePwm, orbitTurnCommand);
+    // Bias the chase angle around the ball so Colibri gets behind it instead of
+    // just driving straight through the rear side.
+    printDebugStatus(nowMs, currentYaw, ballAngle, chaseDriveAngle, opponentGoal.found, opponentGoal.angle, opponentGoal.area, activeAvoidSide, ballInFront);
+    robot.motors.move(chaseDriveAngle, chaseDrivePwm, orbitTurnCommand);
 }

@@ -16,6 +16,21 @@ float GetMotorSpeedOffset(int motorId)
         return 0.0f;
     }
 }
+
+float GetMotorDirectionSign(int motorId)
+{
+    switch (motorId)
+    {
+    case 1:
+        return Constants::Motor::Left::directionSign;
+    case 2:
+        return Constants::Motor::Center::directionSign;
+    case 3:
+        return Constants::Motor::Right::directionSign;
+    default:
+        return 1.0f;
+    }
+}
 }
 
 Motor::Motor(int id, int pwmPin, int in1Pin, int in2Pin) {
@@ -33,6 +48,8 @@ void Motor::begin() {
 }
 
 void Motor::setSpeed(float speed) {
+    speed *= GetMotorDirectionSign(id);
+
     if (speed > 0.0f) {
         speed += GetMotorSpeedOffset(id);
     } else if (speed < 0.0f) {

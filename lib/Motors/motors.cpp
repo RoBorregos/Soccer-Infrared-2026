@@ -32,7 +32,9 @@ void Motors::move(float angleDegrees, float speedPercent, float rotationalSpeed)
     float lower_center_speed = cos((angleDegrees - 270) * PI / 180.0f) * speedPercent + rotationalSpeed;
     float upper_right_speed = cos((angleDegrees - 30) * PI / 180.0f) * speedPercent + rotationalSpeed;
 
-    left.setSpeed(-upper_left_speed);
+    // The left motor direction is already corrected in Motor::setSpeed(),
+    // so do not invert it again here or the robot's kinematics flip.
+    left.setSpeed(upper_left_speed);
     center.setSpeed(lower_center_speed);
     right.setSpeed(upper_right_speed);
 }

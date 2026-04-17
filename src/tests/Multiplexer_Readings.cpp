@@ -49,8 +49,6 @@ void setup() {
 #endif
     photos.Initialize();
     photos.SetAllMargins(Constants::kPhotoMargins);
-
-    delay(1000);
     photos.CaptureBaseline(Constants::kBaselineSamples, Constants::kBaselineDelayMs);
     printPhotoPinMap();
     Serial.println("Starting photo debug test...");

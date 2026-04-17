@@ -93,7 +93,6 @@ void setup()
 
     phototransistor_sensors.Initialize();
     phototransistor_sensors.SetAllMargins(Constants::kPhotoMargins);
-    delay(1000);
     phototransistor_sensors.CaptureBaseline(Constants::kBaselineSamples, Constants::kBaselineDelayMs);
     printPhotoPinMap();
     Serial.println("avoidLineWithPhotos ready");

@@ -253,13 +253,11 @@ void setup() {
         Serial.print("ERROR: Pixy not found. Error code: ");
         Serial.println(pixyStatus);
         Serial.println("Check: 1. PCB traces, 2. swapped SCL/SDA wires, 3. PixyMon I2C mode");
-        while (true) {
-        }
+        Serial.println("Continuing without Pixy home-goal tracking.");
     }
 
     phototransistor_sensors.Initialize();
     phototransistor_sensors.SetAllMargins(Constants::kPhotoMargins);
-    delay(1000);
     phototransistor_sensors.CaptureBaseline(Constants::kBaselineSamples, Constants::kBaselineDelayMs);
 
     robot.begin();
@@ -318,7 +316,7 @@ void loop() {
     activeAvoidSide = AvoidSide::NONE;
     updateBallAngle();
 
-    if (!tryLockHomeGoal(0)) {
+    if (pixyAvailable && !tryLockHomeGoal(0)) {
         currentState = RobotState::WAITING_FOR_HOME_GOAL;
         const PixyBlock emptyGoal = pixyNoGoalBlock();
         printDebugStatus(nowMs, latestBallAngle, emptyGoal, false);
@@ -326,18 +324,19 @@ void loop() {
         return;
     }
 
-    const PixyBlock homeGoal = pixyReadLockedGoal(homeGoalSignature);
-    if (homeGoal.found) {
-        lastHomeGoalSeenTime = nowMs;
-        lastHomeGoalAngle = getHomeGoalDriveAngle(homeGoal, 0.0f);
+    PixyBlock homeGoal = pixyNoGoalBlock();
+    if (pixyAvailable) {
+        homeGoal = pixyReadLockedGoal(homeGoalSignature);
+        if (homeGoal.found) {
+            lastHomeGoalSeenTime = nowMs;
+            lastHomeGoalAngle = getHomeGoalDriveAngle(homeGoal, 0.0f);
+        }
     }
 
-    const bool homeGoalCloseEnough = pixyIsGoalCloseEnough(
-        homeGoal,
-        Constants::Ajolote::kHomeGoalMinAreaThreshold);
-    const bool needsHomeGoalRecovery =
-        !hasFreshHomeGoalTrack(nowMs) ||
-        (homeGoal.found && !homeGoalCloseEnough);
+    const bool homeGoalCloseEnough = pixyAvailable &&
+        pixyIsGoalCloseEnough(homeGoal, Constants::Ajolote::kHomeGoalMinAreaThreshold);
+    const bool needsHomeGoalRecovery = pixyAvailable &&
+        (!hasFreshHomeGoalTrack(nowMs) || (homeGoal.found && !homeGoalCloseEnough));
 
     // Goal safety always wins over ball attack so Ajolote does not wander too far.
     if (needsHomeGoalRecovery) {

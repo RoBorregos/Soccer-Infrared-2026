@@ -138,21 +138,71 @@ void Phototransistor::CaptureSideBaseline(Side side, uint8_t samples, uint16_t d
     }
 
     SideData side_data = GetSideData(side);
-    uint32_t sums[Constants::kPhotoElements] = {0};
+    constexpr uint8_t kMaxBaselineCaptureAttempts = 3;
+    const char *side_name = "FRONT";
 
-    for (uint8_t sample = 0; sample < samples; sample++)
+    switch (side)
     {
-        ReadAllSensors(side);
-        for (uint8_t channel = 0; channel < Constants::kPhotoElements; channel++)
-        {
-            sums[channel] += side_data.readings[channel];
-        }
-        delay(delay_ms);
+    case Side::Left:
+        side_name = "LEFT";
+        break;
+    case Side::Right:
+        side_name = "RIGHT";
+        break;
+    case Side::Front:
+    default:
+        side_name = "FRONT";
+        break;
     }
 
-    for (uint8_t channel = 0; channel < Constants::kPhotoElements; channel++)
+    for (uint8_t attempt = 0; attempt < kMaxBaselineCaptureAttempts; attempt++)
     {
-        side_data.baseline[channel] = sums[channel] / samples;
+        uint32_t sums[Constants::kPhotoElements] = {0};
+
+        for (uint8_t sample = 0; sample < samples; sample++)
+        {
+            ReadAllSensors(side);
+            for (uint8_t channel = 0; channel < Constants::kPhotoElements; channel++)
+            {
+                sums[channel] += side_data.readings[channel];
+            }
+            delay(delay_ms);
+        }
+
+        bool needsRecapture = false;
+        for (uint8_t channel = 0; channel < Constants::kPhotoElements; channel++)
+        {
+            side_data.baseline[channel] = sums[channel] / samples;
+
+            // Retry the side baseline if an active channel came back as zero,
+            // which usually means the mux or sensor side was not ready yet.
+            if (side_data.margins[channel] != Constants::kPhotoIgnoredMargin &&
+                side_data.baseline[channel] == 0)
+            {
+                needsRecapture = true;
+            }
+        }
+
+        if (!needsRecapture)
+        {
+            break;
+        }
+
+        if (attempt + 1 < kMaxBaselineCaptureAttempts)
+        {
+            Serial.print("Photo baseline retry on ");
+            Serial.print(side_name);
+            Serial.print(" (attempt ");
+            Serial.print(attempt + 2);
+            Serial.println(")");
+            delay(Constants::kBaselineSettleDelayMs);
+        }
+        else
+        {
+            Serial.print("Photo baseline warning on ");
+            Serial.print(side_name);
+            Serial.println(": zero channel remained after retries");
+        }
     }
 
     *side_data.baseline_captured = true;
@@ -160,6 +210,9 @@ void Phototransistor::CaptureSideBaseline(Side side, uint8_t samples, uint16_t d
 
 void Phototransistor::CaptureBaseline(uint8_t samples, uint16_t delay_ms) // Captures baseline for all sides 
 {
+    // Give the floor sensors time to settle in every line-avoid startup path
+    // before collecting the baseline used by the line detector.
+    delay(Constants::kBaselineSettleDelayMs);
     CaptureSideBaseline(Side::Left, samples, delay_ms);
     CaptureSideBaseline(Side::Right, samples, delay_ms);
     CaptureSideBaseline(Side::Front, samples, delay_ms);
@@ -191,24 +244,63 @@ void Phototransistor::PhotoDebug()
     ReadMuxSide(Side::Right, right_readings);
     ReadMuxSide(Side::Front, front_readings);
 
-    Serial.println("Ch\tLeftB\tLeft\tRightB\tRight\tFrontB\tFront");
+    Serial.println("Side\tBase\tNow\tPeak\tDelta\tLine");
 
-    for (uint8_t channel = 0; channel < Constants::kPhotoElements; channel++)
+    auto print_side_summary = [](const char *name, const uint16_t *baseline, const uint16_t *margins, const uint16_t *readings, bool enabled)
     {
-        Serial.print(channel);
+        uint32_t baseline_sum = 0;
+        uint32_t reading_sum = 0;
+        uint16_t peak_reading = 0;
+        uint16_t peak_delta = 0;
+        bool has_line = false;
+
+        for (uint8_t channel = 0; channel < Constants::kPhotoElements; channel++)
+        {
+            baseline_sum += baseline[channel];
+            reading_sum += readings[channel];
+
+            if (readings[channel] > peak_reading)
+            {
+                peak_reading = readings[channel];
+            }
+
+            uint16_t delta = 0;
+            if (readings[channel] > baseline[channel])
+            {
+                delta = readings[channel] - baseline[channel];
+            }
+
+            if (delta > peak_delta)
+            {
+                peak_delta = delta;
+            }
+
+            if (readings[channel] > (baseline[channel] + margins[channel]))
+            {
+                has_line = true;
+            }
+        }
+
+        const uint16_t baseline_avg = baseline_sum / Constants::kPhotoElements;
+        const uint16_t reading_avg = reading_sum / Constants::kPhotoElements;
+
+        Serial.print(name);
         Serial.print('\t');
-        Serial.print(left_baseline_[channel]);
+        Serial.print(baseline_avg);
         Serial.print('\t');
-        Serial.print(left_readings[channel]);
+        Serial.print(reading_avg);
         Serial.print('\t');
-        Serial.print(right_baseline_[channel]);
+        Serial.print(peak_reading);
         Serial.print('\t');
-        Serial.print(right_readings[channel]);
+        Serial.print(peak_delta);
         Serial.print('\t');
-        Serial.print(front_baseline_[channel]);
-        Serial.print('\t');
-        Serial.println(front_readings[channel]);
-    }
+        Serial.println(enabled && has_line ? "YES" : "NO");
+    };
+
+    // Keep the debug focused on the three real sides instead of all mux channels.
+    print_side_summary("LEFT", left_baseline_, left_margins_, left_readings, IsSideEnabled(Side::Left));
+    print_side_summary("RIGHT", right_baseline_, right_margins_, right_readings, IsSideEnabled(Side::Right));
+    print_side_summary("FRONT", front_baseline_, front_margins_, front_readings, IsSideEnabled(Side::Front));
 }
 
 bool Phototransistor::HasLineOnSide(Side side)

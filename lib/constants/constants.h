@@ -14,6 +14,7 @@ namespace Constants
             const uint8_t in1 = 3;
             const uint8_t in2 = 4;
             constexpr float speedOffset = 0.0f;
+            constexpr float directionSign = 1.0f;
         }
 
         namespace Center
@@ -22,6 +23,7 @@ namespace Constants
             const uint8_t in1 = 6;
             const uint8_t in2 = 7;
             constexpr float speedOffset = 0.0f;
+            constexpr float directionSign = -1.0f;
         }
 
         namespace Right
@@ -30,6 +32,7 @@ namespace Constants
             const uint8_t in1 = 9;
             const uint8_t in2 = 10;
             constexpr float speedOffset = 0.0f;
+            constexpr float directionSign = -1.0f;
         }
 
         const double minPWM = 40.0;  // We set the minimum PWM that the robot needs to move
@@ -41,26 +44,27 @@ namespace Constants
     // These names match the physical robot sides.
     // The left/right boards are wired opposite of the old bank numbering, so keep
     // the side labels here authoritative and use them everywhere else.
-    const uint8_t kPhotoLeftSignalPin = 21;
-    const uint8_t kPhotoLeftMuxS0Pin = 34;
-    const uint8_t kPhotoLeftMuxS1Pin = 35;
-    const uint8_t kPhotoLeftMuxS2Pin = 36;
+    const uint8_t kPhotoLeftSignalPin = 17;
+    const uint8_t kPhotoLeftMuxS0Pin = 38;
+    const uint8_t kPhotoLeftMuxS1Pin = 39;
+    const uint8_t kPhotoLeftMuxS2Pin = 40;
 
-    const uint8_t kPhotoRightSignalPin = 16;
-    const uint8_t kPhotoRightMuxS0Pin = 30;
-    const uint8_t kPhotoRightMuxS1Pin = 31;
-    const uint8_t kPhotoRightMuxS2Pin = 32;
+    // Keep right/front matched to the current physical mux routing on the robot.
+    const uint8_t kPhotoRightSignalPin = 21;
+    const uint8_t kPhotoRightMuxS0Pin = 34;
+    const uint8_t kPhotoRightMuxS1Pin = 35;
+    const uint8_t kPhotoRightMuxS2Pin = 36;
 
-    const uint8_t kPhotoFrontSignalPin = 17;
-    const uint8_t kPhotoFrontMuxS0Pin = 38;
-    const uint8_t kPhotoFrontMuxS1Pin = 39;
-    const uint8_t kPhotoFrontMuxS2Pin = 40;
+    const uint8_t kPhotoFrontSignalPin = 16;
+    const uint8_t kPhotoFrontMuxS0Pin = 30;
+    const uint8_t kPhotoFrontMuxS1Pin = 31;
+    const uint8_t kPhotoFrontMuxS2Pin = 32;
 
     // Phototransistors
     const uint8_t kPhotoLedEnablePin = 20; // Drive HIGH to power the floor illumination LEDs
     const uint8_t kPhotoElements = 8; // Number of phototransistor channels per side
     // Debugging for enabling/disabling specific phototransistor sides without rewiring 
-    constexpr bool kPhotoLeftEnabled = true;
+    constexpr bool kPhotoLeftEnabled = false;
     constexpr bool kPhotoRightEnabled = true;
     constexpr bool kPhotoFrontEnabled = true;
 
@@ -80,9 +84,10 @@ namespace Constants
  {55, 55, 55, 55, 55, 55, 55, 55}
     };
 
-    const unsigned long kAvoidDurationMs = 150;
+    const unsigned long kAvoidDurationMs = 450;
     const uint8_t kBaselineSamples = 20;
     const uint16_t kBaselineDelayMs = 10;
+    constexpr unsigned long kBaselineSettleDelayMs = 2000;
     const unsigned long kPhotoAutoBaselineQuietMs = 3000;
 
     // Goalie home-goal window. Tune these after mounting or tilting the Pixy.
@@ -103,29 +108,29 @@ namespace Constants
         // Main ball-chase heading hold used by Colibri and PIDLookForBall-style chase.
         constexpr float kHeadingKp = 2.5f;
         constexpr float kHeadingKd = 0.15f;
-        constexpr float kMaxTurnPwm = 70.0f;
-        constexpr float kMinTurnPwm = 15.0f;
+        constexpr float kMaxTurnPwm = 55.0f;
+        constexpr float kMinTurnPwm = 35.0f;
         constexpr float kHeadingSettleBandDeg = 6.5f;
 
-        constexpr float kChaseDrivePwmRatio = 0.58f;
-        constexpr float kGoalDrivePwmRatio = 0.62f;
+        constexpr float kChaseDrivePwmRatio = 0.52f;
+        constexpr float kGoalDrivePwmRatio = 0.55f;
         constexpr float kAvoidDrivePwmRatio = 0.75f;
-        constexpr unsigned long kStartupHoldMs = 1500;
+        constexpr unsigned long kStartupHoldMs = 500;
 
         // Heading hold used specifically during avoid-line maneuvers.
         constexpr float kAvoidHeadingKp = 1.5f;
         constexpr float kAvoidHeadingKd = 0.10f;
         constexpr float kAvoidMaxTurnPwm = 55.0f;
-        constexpr float kAvoidMinTurnPwm = 45.0f;
+        constexpr float kAvoidMinTurnPwm = 50.0f;
         constexpr float kAvoidHeadingSettleBandDeg = 6.0f;
 
         // The ball is considered "in front" inside this +- angle window.
-        constexpr float kBallFrontToleranceDeg = 5.0f;
+        constexpr float kBallFrontToleranceDeg = 6.0f;
         // When the ball is off-center but still in the front half, ease in behind it.
         constexpr float kBehindBallApproachGain = 0.6f;
         constexpr float kBehindBallApproachClampDeg = 55.0f;
         // When the ball is behind the robot, strafe around it instead of hitting backward.
-        constexpr float kBehindBallOrbitAngleDeg = 80.0f;
+        constexpr float kBehindBallOrbitAngleDeg = 0.85f;
 
         constexpr float kIRBallFollowOffsetBack = 1.0f;
         constexpr float kIRBallFollowOffsetSide = 1.0f;
