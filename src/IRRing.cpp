@@ -4,12 +4,13 @@
 
 // RoboCupJunior MODE-A waveform period: 833 us (1.2 kHz, 40 kHz carrier)
 #define T_MODEA 833
-#define T_READ_WINDOW (T_MODEA * 5)
+#define T_READ_WINDOW (T_MODEA * 3)
+
 // Set Uno to 57600. Due to Uno's 16MHz clock divider, this ACTUALLY produces 58824 baud.
 #define BAUD 9600 
 
 // Theta: circular moving average — handles the +/-180 deg wrap correctly.
-CircularMovingAverage smaForTheta(80);
+CircularMovingAverage smaForTheta(20);
 
 unsigned long printTimer_ms = 0;
 

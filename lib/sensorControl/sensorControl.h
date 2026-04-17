@@ -20,7 +20,7 @@ const float unitVectorY[IR_NUM] = {
 
 // Sharpens angular resolution by suppressing weak off-axis sensor contributions.
 // 1.0 = linear (original), 2.0 = quadratic (recommended), 3.0 = approaches max-sensor-wins.
-#define WEIGHT_EXPONENT 2.0f
+#define WEIGHT_EXPONENT 1.45f
 
 typedef struct { float x; float y; } vectorXY_t;
 typedef struct { float radius; float theta; } vectorRT_t;
