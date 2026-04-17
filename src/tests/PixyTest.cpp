@@ -1,50 +1,60 @@
 #include <Arduino.h>
-#include <Pixy2.h>
+#include "Pixy2I2C.h"
 
-Pixy2 pixy;
-
-#define SIG_ORANGE_BALL  1
-#define SIG_YELLOW_GOAL 2
-#define SIG_BLUE_GOAL   3
+Pixy2I2C pixy;
 
 void setup() {
   Serial.begin(115200);
-  delay(1000);
+  delay(3000);
   Serial.println("Pixy2 - Detection Test");
   Serial.println("====================================");
+  Serial.println("Starting I2C bus for Pixy...");
 
-  int result = pixy.init();
+  const int8_t status = pixy.init();
 
-  if (result == 0) {
+  if (status == 0) {
     Serial.println("[SUCCESS] Pixy2 connected!");
   } else {
-    Serial.println("[FAIL] Pixy2 not found. Check wiring, pixyMon interface configs, energy supply or whatever idk lol");
-    while (true); 
+    Serial.print("ERROR: Pixy not found. Error code: ");
+    Serial.println(status);
+    Serial.println("Check: 1. PCB traces, 2. swapped SCL/SDA wires, 3. PixyMon I2C mode");
+    while (true);
   }
 }
 
 void loop() {
-  pixy.ccc.getBlocks();
+  const int8_t blockStatus = pixy.ccc.getBlocks();
 
-  bool found = false;
+  if (blockStatus < 0) {
+    Serial.print("Pixy read error: ");
+    Serial.println(blockStatus);
+  } else if (pixy.ccc.numBlocks) {
+    Serial.print("Detected ");
+    Serial.print(pixy.ccc.numBlocks);
+    Serial.println(" object(s).");
 
-  for (int i = 0; i < pixy.ccc.numBlocks; i++) {
-    if (pixy.ccc.blocks[i].m_signature == SIG_YELLOW_GOAL) {
-      found = true;
-      Serial.print("GOAL| x= ");
-      Serial.print(pixy.ccc.blocks[i].m_x);
-      Serial.print("  y= ");
-      Serial.print(pixy.ccc.blocks[i].m_y);
-      Serial.print("  size= ");
-      Serial.print(pixy.ccc.blocks[i].m_width);
+    for (uint8_t i = 0; i < pixy.ccc.numBlocks; i++) {
+      const Block& block = pixy.ccc.blocks[i];
+      const uint32_t area = static_cast<uint32_t>(block.m_width) * block.m_height;
+
+      Serial.print("Block ");
+      Serial.print(i);
+      Serial.print(" | sig: ");
+      Serial.print(block.m_signature);
+      Serial.print(" | pos: (");   
+      Serial.print(block.m_x);
+      Serial.print(", ");
+      Serial.print(block.m_y);
+      Serial.print(") | size: ");
+      Serial.print(block.m_width);
       Serial.print("x");
-      Serial.println(pixy.ccc.blocks[i].m_height);
+      Serial.print(block.m_height);
+      Serial.print(" | area: ");
+      Serial.println(area);
     }
-  }
-
-  if (!found) {
+  } else {
     Serial.println("No subject detected");
   }
-
-  delay(200);
+  
+  delay(100);
 }

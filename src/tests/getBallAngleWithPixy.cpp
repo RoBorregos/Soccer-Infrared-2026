@@ -1,8 +1,8 @@
 #include "robot.h"
-#include "pixyLib.h"
+#include "Pixy2I2C.h"
 
 Robot followBall;
-Pixy2 pixy;
+Pixy2I2C pixy;
 
 uint16_t xComponent = 0;
 uint16_t yComponent = 0;
@@ -21,7 +21,7 @@ void setup() {
     if (result == 0) {
         Serial.println("[SUCCESS] Pixy2 connected!");
     } else {
-        Serial.println("[FAIL] Pixy2 not found. Check wiring, pixyMon interface configs, energy supply or whatever idk lol");
+        Serial.println("[FAIL] Pixy2 not found. Check wiring, PixyMon I2C interface setting, power, and shared ground.");
         while (true); 
     }
 }

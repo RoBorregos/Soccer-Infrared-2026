@@ -100,15 +100,24 @@ namespace Constants
 
     namespace Striker
     {
-        constexpr float kHeadingKp = 2.3f;
-        constexpr float kHeadingKd = 0.18f;
-        constexpr float kMaxTurnPwm = 90.0f;
-        constexpr float kMinTurnPwm = 24.0f;
-        constexpr float kHeadingSettleBandDeg = 3.8f;
+        // Main ball-chase heading hold used by Colibri and PIDLookForBall-style chase.
+        constexpr float kHeadingKp = 2.5f;
+        constexpr float kHeadingKd = 0.15f;
+        constexpr float kMaxTurnPwm = 70.0f;
+        constexpr float kMinTurnPwm = 15.0f;
+        constexpr float kHeadingSettleBandDeg = 6.5f;
 
         constexpr float kChaseDrivePwmRatio = 0.58f;
         constexpr float kGoalDrivePwmRatio = 0.62f;
-        constexpr float kAvoidDrivePwmRatio = 0.65f;
+        constexpr float kAvoidDrivePwmRatio = 0.75f;
+        constexpr unsigned long kStartupHoldMs = 1500;
+
+        // Heading hold used specifically during avoid-line maneuvers.
+        constexpr float kAvoidHeadingKp = 1.5f;
+        constexpr float kAvoidHeadingKd = 0.10f;
+        constexpr float kAvoidMaxTurnPwm = 55.0f;
+        constexpr float kAvoidMinTurnPwm = 45.0f;
+        constexpr float kAvoidHeadingSettleBandDeg = 6.0f;
 
         // The ball is considered "in front" inside this +- angle window.
         constexpr float kBallFrontToleranceDeg = 5.0f;

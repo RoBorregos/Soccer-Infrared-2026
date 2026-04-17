@@ -1,7 +1,7 @@
 #include "pixyLib.h"
 #include <math.h>
 
-Pixy2 pixy;
+PixyDevice pixy;
 
 namespace {
 

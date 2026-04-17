@@ -1,15 +1,8 @@
 #pragma once
 
 #include "Pixy.h"
-#include "Pixy2.h"
-#include "TPixy2.h"
-#include "Pixy2UART.h"
-#include "Pixy2CCC.h"
-#include "Pixy2Line.h"
-#include "Pixy2Video.h"
 
 #include <Arduino.h>
-#include <Pixy2.h>
 
 namespace PixySig {
     constexpr uint16_t kBall       = 1;
@@ -77,4 +70,4 @@ double pixyGetHeadingTargetForGoal(const PixyBlock &goalBlock,
                                    uint32_t minArea,
                                    float angleDeadbandDeg = 0.0f);
 
-extern Pixy2 pixy;
+extern PixyDevice pixy;

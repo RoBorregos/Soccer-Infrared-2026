@@ -24,15 +24,29 @@ enum class RobotState {
     AVOIDING_LINE
 };
 
+enum class AvoidSide {
+    NONE,
+    FRONT,
+    LEFT,
+    RIGHT
+};
+
+struct LineState {
+    bool left;
+    bool right;
+    bool front;
+    AvoidSide detectedSide;
+    int escapeAngle;
+};
+
 RobotState currentState = RobotState::GET_BEHIND_BALL;
 
-const float kCarryDrivePwm = Constants::Striker::kGoalDrivePwmRatio * Constants::Motor::maxPWM;
-const float kBehindBallDrivePwm = Constants::Striker::kChaseDrivePwmRatio * Constants::Motor::maxPWM;
+const float kChaseDrivePwm = Constants::Striker::kChaseDrivePwmRatio * Constants::Motor::maxPWM;
 const float kAvoidDrivePwm = Constants::Striker::kAvoidDrivePwmRatio * Constants::Motor::maxPWM;
-const float kBallFrontToleranceDeg = 5.0f;
-const unsigned long kStartupHoldMs = 1500;
+const float kCarryDrivePwm = Constants::Striker::kGoalDrivePwmRatio * Constants::Motor::maxPWM;
+constexpr unsigned long kDebugPrintIntervalMs = 120;
 
-PID headingPD(
+PID chaseHeadingPD(
     Constants::Striker::kHeadingKp,
     0.0f,
     Constants::Striker::kHeadingKd,
@@ -41,15 +55,26 @@ PID headingPD(
     Constants::Striker::kHeadingSettleBandDeg
 );
 
+PID avoidHeadingPD(
+    Constants::Striker::kAvoidHeadingKp,
+    0.0f,
+    Constants::Striker::kAvoidHeadingKd,
+    Constants::Striker::kAvoidMaxTurnPwm,
+    Constants::Striker::kAvoidMinTurnPwm,
+    Constants::Striker::kAvoidHeadingSettleBandDeg
+);
+
 double startupYaw = 0.0;
 unsigned long motorsEnableMs = 0;
 unsigned long lastGoalSeenTime = 0;
 unsigned long lastBallReadMs = 0;
 unsigned long avoidStartTime = 0;
+unsigned long lastDebugPrintMs = 0;
 uint16_t opponentGoalSignature = 0;
 bool pixyAvailable = false;
 float latestBallAngle = 0.0f;
 int escapeAngle = 0;
+AvoidSide activeAvoidSide = AvoidSide::NONE;
 
 }
 
@@ -59,7 +84,67 @@ bool hasFreshGoalTrack(unsigned long nowMs) {
 }
 
 bool isBallInFront(float ballAngle) {
-    return fabsf(ballAngle) <= kBallFrontToleranceDeg;
+    return fabsf(ballAngle) <= Constants::Striker::kBallFrontToleranceDeg;
+}
+
+const char* boolText(bool value) {
+    return value ? "true" : "false";
+}
+
+const char* avoidSideName(AvoidSide side) {
+    switch (side) {
+        case AvoidSide::FRONT:
+            return "front";
+        case AvoidSide::LEFT:
+            return "left";
+        case AvoidSide::RIGHT:
+            return "right";
+        case AvoidSide::NONE:
+        default:
+            return "none";
+    }
+}
+
+LineState readLineState() {
+    const bool front = phototransistor_sensors.HasLineOnSide(Side::Front);
+    const bool left = phototransistor_sensors.HasLineOnSide(Side::Left);
+    const bool right = phototransistor_sensors.HasLineOnSide(Side::Right);
+
+    if (front) {
+        return {left, right, front, AvoidSide::FRONT, 180};
+    }
+
+    if (left) {
+        return {left, right, front, AvoidSide::LEFT, 90};
+    }
+
+    if (right) {
+        return {left, right, front, AvoidSide::RIGHT, -90};
+    }
+
+    return {left, right, front, AvoidSide::NONE, -1};
+}
+
+void printDebugStatus(unsigned long nowMs,
+                      float ballAngle,
+                      bool goalCloseEnough,
+                      AvoidSide avoidSide,
+                      bool ballInFront) {
+    if (nowMs - lastDebugPrintMs < kDebugPrintIntervalMs) {
+        return;
+    }
+
+    lastDebugPrintMs = nowMs;
+    Serial.print("ball_angle=");
+    Serial.print(ballAngle, 1);
+    Serial.print(" goal_close_enough=");
+    Serial.print(boolText(goalCloseEnough));
+    Serial.print(" avoiding_line=");
+    Serial.print(boolText(avoidSide != AvoidSide::NONE));
+    Serial.print(" line_side=");
+    Serial.print(avoidSideName(avoidSide));
+    Serial.print(" ball_in_front=");
+    Serial.println(boolText(ballInFront));
 }
 
 void updateBallAngle() {
@@ -82,6 +167,8 @@ void updateBallAngle() {
 }
 
 void setup() {
+    Serial.begin(115200);
+
     phototransistor_sensors.Initialize();
     phototransistor_sensors.SetAllMargins(Constants::kPhotoMargins);
     delay(1000);
@@ -105,8 +192,10 @@ void setup() {
     }
 
     startupYaw = robot.bno.GetBNOData();
-    headingPD.reset();
-    motorsEnableMs = millis() + kStartupHoldMs;
+    chaseHeadingPD.reset();
+    avoidHeadingPD.reset();
+    motorsEnableMs = millis() + Constants::Striker::kStartupHoldMs;
+    Serial.println("Colibri debug ready");
 }
 
 void loop() {
@@ -116,6 +205,8 @@ void loop() {
         robot.motors.stop();
         return;
     }
+
+    const double currentYaw = robot.bno.GetBNOData();
 
     PixyBlock opponentGoal = pixyNoGoalBlock();
     if (pixyAvailable) {
@@ -133,53 +224,72 @@ void loop() {
         }
     }
 
-    const double currentYaw = robot.bno.GetBNOData();
+    const double avoidTurnCommand = avoidHeadingPD.calculate(startupYaw, currentYaw, true);
+
+    if (currentState == RobotState::AVOIDING_LINE) {
+        printDebugStatus(nowMs,
+                         latestBallAngle,
+                         false,
+                         activeAvoidSide,
+                         isBallInFront(latestBallAngle));
+        if (nowMs - avoidStartTime >= Constants::kAvoidDurationMs) {
+            currentState = RobotState::GET_BEHIND_BALL;
+            activeAvoidSide = AvoidSide::NONE;
+        } else {
+            robot.motors.move(static_cast<float>(escapeAngle), kAvoidDrivePwm, avoidTurnCommand);
+        }
+        return;
+    }
+
+    const LineState lineState = readLineState();
+    if (lineState.escapeAngle != -1) {
+        escapeAngle = lineState.escapeAngle;
+        avoidStartTime = nowMs;
+        currentState = RobotState::AVOIDING_LINE;
+        activeAvoidSide = lineState.detectedSide;
+        printDebugStatus(nowMs,
+                         latestBallAngle,
+                         false,
+                         activeAvoidSide,
+                         isBallInFront(latestBallAngle));
+        robot.motors.move(static_cast<float>(escapeAngle), kAvoidDrivePwm, avoidTurnCommand);
+        return;
+    }
+
+    activeAvoidSide = AvoidSide::NONE;
+
+    updateBallAngle();
+
+    if (nowMs - lastBallReadMs > Constants::kIRFreshDataTimeoutMs) {
+        const double chaseTurnCommand = chaseHeadingPD.calculate(startupYaw, currentYaw, true);
+        printDebugStatus(nowMs, latestBallAngle, false, activeAvoidSide, false);
+        robot.motors.move(0.0f, 0.0f, chaseTurnCommand);
+        return;
+    }
+
+    const float ballAngle = latestBallAngle;
     const bool goalCloseEnough = pixyAvailable &&
                                  pixyIsGoalCloseEnough(opponentGoal, Constants::Striker::kGoalAimAreaThreshold);
+    const bool ballInFront = isBallInFront(ballAngle);
+    const bool canCarryToGoal = goalCloseEnough && ballInFront;
     double headingTarget = startupYaw;
 
-    if (goalCloseEnough) {
+    if (canCarryToGoal) {
         headingTarget = pixyGetHeadingTargetForGoal(opponentGoal,
                                                     currentYaw,
                                                     Constants::Striker::kGoalAimAreaThreshold,
                                                     Constants::Striker::kGoalHeadingDeadbandDeg);
     }
 
-    const double turnCommand = headingPD.calculate(headingTarget, currentYaw, true);
+    const double chaseTurnCommand = chaseHeadingPD.calculate(headingTarget, currentYaw, true);
+    printDebugStatus(nowMs, ballAngle, goalCloseEnough, activeAvoidSide, ballInFront);
 
-    if (currentState == RobotState::AVOIDING_LINE) {
-        if (nowMs - avoidStartTime >= Constants::kAvoidDurationMs) {
-            currentState = RobotState::GET_BEHIND_BALL;
-        } else {
-            robot.motors.move(static_cast<float>(escapeAngle), kAvoidDrivePwm, turnCommand);
-        }
-        return;
-    }
-
-    const int escapeAngleDetected = phototransistor_sensors.CheckPhotosOnField();
-    if (escapeAngleDetected != -1) {
-        escapeAngle = escapeAngleDetected;
-        avoidStartTime = nowMs;
-        currentState = RobotState::AVOIDING_LINE;
-        robot.motors.move(static_cast<float>(escapeAngle), kAvoidDrivePwm, turnCommand);
-        return;
-    }
-
-    updateBallAngle();
-
-    if (nowMs - lastBallReadMs > Constants::kIRFreshDataTimeoutMs) {
-        robot.motors.move(0.0f, 0.0f, turnCommand);
-        return;
-    }
-
-    const float ballAngle = latestBallAngle;
-
-    if (isBallInFront(ballAngle)) {
+    if (canCarryToGoal) {
         currentState = RobotState::CARRY_BALL_FORWARD;
-        robot.motors.move(0.0f, kCarryDrivePwm, turnCommand);
+        robot.motors.move(0.0f, kCarryDrivePwm, chaseTurnCommand);
         return;
     }
 
     currentState = RobotState::GET_BEHIND_BALL;
-    robot.motors.move(ballAngle, kBehindBallDrivePwm, turnCommand);
+    robot.motors.move(ballAngle, kChaseDrivePwm, chaseTurnCommand);
 }

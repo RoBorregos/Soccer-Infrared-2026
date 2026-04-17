@@ -2,7 +2,7 @@
 #define ARDUINO_PIXYCAM_H
 
 #include <Arduino.h>
-#include <Pixy2.h>
+#include "Pixy2I2C.h"
 
 #define FRAME_W           316     
 #define FRAME_H           208     
@@ -20,5 +20,7 @@
 
 #define GOAL_DISTANCE_K   3000.0  // estimated_distance = K / blob_width
 
-extern Pixy2 pixy;
+using PixyDevice = Pixy2I2C;
+
+extern PixyDevice pixy;
 #endif 

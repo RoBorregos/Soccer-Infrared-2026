@@ -29,7 +29,7 @@ public:
   {
     SPI.begin();
     SPI.beginTransaction(SPISettings(PIXY_SPI_CLOCKRATE, MSBFIRST, SPI_MODE3));
-	return 0;
+    return 0;
   }
 	
   void close()
