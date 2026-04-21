@@ -20,6 +20,8 @@ private:
     uint16_t  sizeOfDataArray;
     uint16_t  count;
     bool      filled;
+    float     sumC;
+    float     sumS;
 
     static constexpr float DEG2RAD = M_PI / 180.0f;
     static constexpr float RAD2DEG = 180.0f / M_PI;
@@ -31,23 +33,41 @@ public:
         sizeOfDataArray = num_array;
         count           = 0;
         filled          = false;
+        sumC = 0.0f;
+        sumS = 0.0f;
     }
 
     // Returns the circular mean in degrees (-180 to +180).
+    // Optimized O(1) update: maintain running sums so each update does
+    // only a constant number of operations regardless of window size.
     float updateData(float angleDeg) {
-        cosArray[count] = cosf(angleDeg * DEG2RAD);
-        sinArray[count] = sinf(angleDeg * DEG2RAD);
+        float newC = cosf(angleDeg * DEG2RAD);
+        float newS = sinf(angleDeg * DEG2RAD);
+
+        // If buffer is full, subtract the value being overwritten.
+        if (filled) {
+            sumC -= cosArray[count];
+            sumS -= sinArray[count];
+        }
+
+        // Insert new sample and add to running sums.
+        cosArray[count] = newC;
+        sinArray[count] = newS;
+        sumC += newC;
+        sumS += newS;
+
+        // Advance index
         count++;
         if (count >= sizeOfDataArray) {
             count  = 0;
             filled = true;
         }
+
         uint16_t n = filled ? sizeOfDataArray : count;
-        float sumC = 0.0f, sumS = 0.0f;
-        for (uint16_t i = 0; i < n; ++i) {
-            sumC += cosArray[i];
-            sumS += sinArray[i];
-        }
+        if (n == 0) return 0.0f;
+
+        // atan2(sumS, sumC) works with summed vectors; scaling by n
+        // cancels out in the atan2 result, so we can use sums directly.
         return atan2f(sumS, sumC) * RAD2DEG;
     }
 
@@ -58,6 +78,8 @@ public:
         }
         count  = 0;
         filled = false;
+        sumC = 0.0f;
+        sumS = 0.0f;
     }
 };
 
